@@ -1,6 +1,14 @@
 @echo off
 REM Find Large Files - Cross-platform Build Script (Windows)
 REM Usage: build.bat [target]
+REM
+REM Supported targets:
+REM   windows-amd64   windows-386   windows-arm64
+REM   linux-amd64     linux-386     linux-arm64     linux-arm
+REM   darwin-amd64    darwin-arm64
+REM
+REM Output naming:
+REM   build\find-large-files-<os>-<arch>[.exe]
 
 setlocal enabledelayedexpansion
 
@@ -128,12 +136,23 @@ call :build darwin arm64 ""
 goto end
 
 :build_current
-echo === Building current platform (Windows/amd64) ===
+call :detect_current_arch
+echo === Building current platform (Windows/%CURRENT_ARCH%) ===
 echo.
-call :build windows amd64 .exe
+call :build windows %CURRENT_ARCH% .exe
 echo.
 echo === Build completed ===
 goto end
+
+:detect_current_arch
+set CURRENT_ARCH=amd64
+set DETECT_ARCH=%PROCESSOR_ARCHITECTURE%
+if defined PROCESSOR_ARCHITEW6432 set DETECT_ARCH=%PROCESSOR_ARCHITEW6432%
+
+if /I "%DETECT_ARCH%"=="AMD64" set CURRENT_ARCH=amd64
+if /I "%DETECT_ARCH%"=="x86" set CURRENT_ARCH=386
+if /I "%DETECT_ARCH%"=="ARM64" set CURRENT_ARCH=arm64
+goto :eof
 
 :build
 set os=%~1
@@ -160,7 +179,7 @@ echo.
 echo Usage: build.bat [target]
 echo.
 echo Parameters:
-echo   (none)            - Build current platform
+echo   (none)            - Build current Windows architecture
 echo   all               - Build all platforms
 echo   windows           - Build all Windows versions
 echo   windows-amd64     - Build Windows 64-bit
@@ -177,10 +196,15 @@ echo   darwin-arm64      - Build macOS Apple Silicon
 echo   help              - Show this help
 echo.
 echo Examples:
-echo   build.bat                  # Build current platform
+echo   build.bat                  # Build current Windows architecture
 echo   build.bat all              # Build all platforms
 echo   build.bat windows-amd64    # Build Windows 64-bit only
 echo   build.bat darwin           # Build all macOS versions
+echo.
+echo Output files:
+echo   build\find-large-files-windows-amd64.exe
+echo   build\find-large-files-linux-arm64
+echo   build\find-large-files-darwin-arm64
 goto end
 
 :end

@@ -14,10 +14,19 @@ if "%1"=="" (
 
 set VERSION=%1
 set TAG=v%VERSION%
+for /f %%i in ('git branch --show-current') do set CURRENT_BRANCH=%%i
 
 echo === Find Large Files Release Script ===
 echo Version: %VERSION%
+echo Branch: %CURRENT_BRANCH%
 echo.
+
+REM Check if tag already exists
+git rev-parse "%TAG%" >nul 2>nul
+if %ERRORLEVEL% EQU 0 (
+    echo Error: Tag %TAG% already exists
+    exit /b 1
+)
 
 REM Check for uncommitted changes
 git diff-index --quiet HEAD --
@@ -56,16 +65,18 @@ echo === Release preparation completed ===
 echo.
 echo Next steps:
 echo 1. Push the changes and tag:
-echo    git push origin master
+echo    git push origin %CURRENT_BRANCH%
 echo    git push origin %TAG%
+echo    or
+echo    git push origin %CURRENT_BRANCH% --follow-tags
 echo.
-echo 2. Go to GitHub and create a new release:
-echo    https://github.com/YOUR_USERNAME/find-large-files/releases/new
+echo 2. Wait for GitHub Actions workflow '.github/workflows/release.yml' to run.
+echo    The workflow is triggered by pushing tag %TAG%.
 echo.
-echo 3. Upload the following files from build\ directory:
+echo 3. Release assets expected from CI:
 dir build\
 echo.
-echo Or use GitHub CLI to create release automatically:
+echo 4. Optional manual GitHub CLI release command:
 echo    gh release create %TAG% build\* --title "%TAG%" --notes "Release %VERSION%"
 
 endlocal

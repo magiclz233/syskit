@@ -29,6 +29,7 @@ cd "$PROJECT_ROOT"
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 项目信息
@@ -198,6 +199,10 @@ show_help() {
     echo "  ./build.sh all              # 编译所有平台"
     echo "  ./build.sh windows-amd64    # 只编译 Windows 64位"
     echo "  ./build.sh darwin           # 编译所有 macOS 版本"
+    echo ""
+    echo "输出文件命名:"
+    echo "  build/find-large-files-<os>-<arch>[.exe]"
+    echo "  示例: build/find-large-files-linux-arm64"
 }
 
 # 主逻辑

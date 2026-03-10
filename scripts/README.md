@@ -1,347 +1,169 @@
-# Scripts 目录说明
+# 脚本说明
 
-本目录包含项目的构建脚本和工具脚本。
+## 构建脚本
 
-## 📁 文件列表
+### 文件
 
-### build.sh
-Linux/macOS 平台的构建脚本。
+- `build.sh`: Linux/macOS 下使用的构建脚本
+- `build.bat`: Windows 下使用的构建脚本
 
-**用法**：
-```bash
-chmod +x scripts/build.sh
-./scripts/build.sh [target]
+### 支持的平台目标
+
+两个构建脚本支持同一组目标：
+
+- `windows-amd64`
+- `windows-386`
+- `windows-arm64`
+- `linux-amd64`
+- `linux-386`
+- `linux-arm64`
+- `linux-arm`
+- `darwin-amd64`
+- `darwin-arm64`
+
+聚合目标：
+
+- `all`: 构建全部平台
+- `windows`: 构建全部 Windows 目标
+- `linux`: 构建全部 Linux 目标
+- `darwin`: 构建全部 macOS 目标
+
+默认行为：
+
+- `build.sh` 不带参数时，会自动检测当前宿主机平台并构建当前平台
+- `build.bat` 不带参数时，会检测当前 Windows 架构并构建当前 Windows 目标
+
+### 产物命名规则
+
+构建结果统一输出到 `build/` 目录，文件名格式如下：
+
+```text
+find-large-files-<os>-<arch>[.exe]
 ```
 
-**参数**：
-- `(无参数)` - 编译当前平台版本（自动检测）
-- `all` - 编译所有平台版本
-- `windows` - 编译所有 Windows 版本
-- `windows-amd64` - 编译 Windows 64位版本
-- `windows-386` - 编译 Windows 32位版本
-- `windows-arm64` - 编译 Windows ARM64版本
-- `linux` - 编译所有 Linux 版本
-- `linux-amd64` - 编译 Linux 64位版本
-- `linux-386` - 编译 Linux 32位版本
-- `linux-arm64` - 编译 Linux ARM64版本
-- `linux-arm` - 编译 Linux ARM32版本
-- `darwin` - 编译所有 macOS 版本
-- `darwin-amd64` - 编译 macOS Intel版本
-- `darwin-arm64` - 编译 macOS Apple Silicon版本
-- `help` - 显示帮助信息
+示例：
 
-**示例**：
+- `build/find-large-files-windows-amd64.exe`
+- `build/find-large-files-linux-arm64`
+- `build/find-large-files-darwin-arm64`
+
+### 常用命令
+
+Linux/macOS:
+
 ```bash
-# 编译当前平台
 ./scripts/build.sh
-
-# 编译所有平台
 ./scripts/build.sh all
-
-# 只编译 Windows 64位
-./scripts/build.sh windows-amd64
-
-# 编译所有 macOS 版本
-./scripts/build.sh darwin
-```
-
-### build.bat
-Windows 平台的构建脚本。
-
-**用法**：
-```cmd
-scripts\build.bat [target]
-```
-
-**参数**：与 build.sh 相同
-
-**示例**：
-```cmd
-REM 编译当前平台
-scripts\build.bat
-
-REM 编译所有平台
-scripts\build.bat all
-
-REM 只编译 Windows 64位
-scripts\build.bat windows-amd64
-
-REM 编译所有 Linux 版本
-scripts\build.bat linux
-```
-
-### find-largest-local.ps1
-PowerShell 版本的文件扫描工具（旧版本，已被 Go 版本替代）。
-
-保留此文件用于参考和对比性能。
-
-### release.sh / release.bat
-自动化发布脚本，用于创建新版本发布。
-
-**用法**：
-```bash
-# Linux/macOS
-chmod +x scripts/release.sh
-./scripts/release.sh 0.3.0
-
-# Windows
-scripts\release.bat 0.3.0
-```
-
-**功能**：
-- 自动更新 main.go 中的版本号
-- 编译所有平台版本
-- 创建 Git 标签
-- 提供后续发布步骤指引
-
-## 🚀 发布新版本流程
-
-### 方法 1：使用发布脚本（推荐）
-
-```bash
-# 1. 运行发布脚本
-./scripts/release.sh 0.3.0
-
-# 2. 按照提示推送代码和标签
-git push origin master
-git push origin v0.3.0
-
-# 3. 使用 GitHub CLI 创建发布（推荐）
-gh release create v0.3.0 build/* \
-  --title "v0.3.0" \
-  --notes "Release version 0.3.0"
-
-# 或手动在 GitHub 网页上创建 Release 并上传 build/ 目录下的文件
-```
-
-### 方法 2：手动发布
-
-```bash
-# 1. 更新版本号（编辑 main.go）
-# 修改: version = "0.3.0"
-
-# 2. 提交更改
-git add main.go
-git commit -m "Bump version to 0.3.0"
-
-# 3. 编译所有平台
-./scripts/build.sh all
-
-# 4. 创建标签
-git tag -a v0.3.0 -m "Release version 0.3.0"
-
-# 5. 推送
-git push origin master
-git push origin v0.3.0
-
-# 6. 在 GitHub 上创建 Release
-# 访问: https://github.com/YOUR_USERNAME/find-large-files/releases/new
-# 上传 build/ 目录下的所有文件
-```
-
-### 方法 3：使用 GitHub Actions 自动发布
-
-项目已配置 GitHub Actions 自动发布工作流（`.github/workflows/release.yml`）。
-
-只需推送标签即可自动触发：
-
-```bash
-# 1. 创建标签
-git tag -a v0.3.0 -m "Release version 0.3.0"
-
-# 2. 推送标签
-git push origin v0.3.0
-
-# GitHub Actions 会自动：
-# - 编译所有平台版本
-# - 创建 Release
-# - 上传所有编译产物
-```
-
-## 📝 发布说明模板
-
-创建 Release 时使用以下模板：
-
-```markdown
-## Find Large Files v0.3.0
-
-一个高性能的跨平台文件系统分析工具，快速找出占用空间最大的文件和文件夹。
-
-### ✨ 新特性
-
-- 🚀 三种扫描模式：混合模式（推荐）、快速模式、完整模式
-- 📊 多种输出格式：表格、JSON、CSV
-- 🎯 智能过滤：支持目录排除、大小阈值、深度限制
-
-### 📦 下载
-
-根据你的操作系统选择对应的版本：
-
-**Windows**
-- Windows 64位 (推荐): `find-large-files-windows-amd64.exe`
-- Windows 32位: `find-large-files-windows-386.exe`
-- Windows ARM64: `find-large-files-windows-arm64.exe`
-
-**Linux**
-- Linux 64位 (推荐): `find-large-files-linux-amd64`
-- Linux ARM64: `find-large-files-linux-arm64`
-
-**macOS**
-- macOS Intel: `find-large-files-darwin-amd64`
-- macOS Apple Silicon (M1/M2/M3): `find-large-files-darwin-arm64`
-
-### 🚀 快速开始
-
-\`\`\`bash
-# Windows
-find-large-files-windows-amd64.exe D:\
-
-# Linux/macOS
-chmod +x find-large-files-linux-amd64
-./find-large-files-linux-amd64 /home/user
-\`\`\`
-
-### 📚 文档
-
-- [完整文档](../README.md)
-- [快速使用指南](../docs/QUICKSTART.md)
-```
-
-## 🎯 常见使用场景
-
-### 场景 1：本地开发测试
-编译当前平台版本，快速测试：
-```bash
-# Linux/macOS
-./scripts/build.sh
-
-# Windows
-scripts\build.bat
-```
-
-编译后的文件位于 `build/` 目录。
-
-### 场景 2：发布新版本
-编译所有平台版本，准备发布：
-```bash
-# Linux/macOS
-./scripts/build.sh all
-
-# Windows
-scripts\build.bat all
-```
-
-### 场景 3：只编译特定平台
-为特定平台编译：
-```bash
-# 只编译 Windows 版本
 ./scripts/build.sh windows
-
-# 只编译 Linux ARM64（树莓派、ARM服务器）
 ./scripts/build.sh linux-arm64
-
-# 只编译 macOS Apple Silicon
 ./scripts/build.sh darwin-arm64
 ```
 
-## 📊 支持的平台架构
+Windows:
 
-### Windows
-| 架构 | 说明 | 覆盖率 |
-|------|------|--------|
-| amd64 | 64位 Intel/AMD | 99% Windows 用户 |
-| 386 | 32位 Intel/AMD | 老旧系统 |
-| arm64 | ARM64 | Surface Pro X 等 |
+```powershell
+scripts\build.bat
+scripts\build.bat all
+scripts\build.bat windows
+scripts\build.bat linux-arm64
+scripts\build.bat darwin-arm64
+```
 
-### Linux
-| 架构 | 说明 | 覆盖率 |
-|------|------|--------|
-| amd64 | 64位 Intel/AMD | 大部分桌面/服务器 |
-| 386 | 32位 Intel/AMD | 老旧系统 |
-| arm64 | ARM64 | 树莓派4、ARM服务器 |
-| arm | ARM32 | 树莓派3等 |
+### 什么时候用哪种方式
 
-### macOS
-| 架构 | 说明 | 覆盖率 |
-|------|------|--------|
-| amd64 | Intel 芯片 | 2020年前的 Mac |
-| arm64 | Apple Silicon | M1/M2/M3 Mac |
+- 只给自己当前机器用：直接运行默认构建
+- 要准备 GitHub Release 资产：运行 `all`
+- 只补某个平台：运行对应精确目标，例如 `linux-arm64`
 
-## 🔧 编译选项说明
+## 发布脚本
 
-构建脚本使用以下 Go 编译选项：
+### 文件
+
+- `release.sh`
+- `release.bat`
+
+### 它们做什么
+
+发布脚本会按顺序执行：
+
+1. 检查工作区是否干净
+2. 检查目标 tag 是否已存在
+3. 更新 [main.go](/e:/code/golang/find-large-files/main.go) 中的版本号
+4. 提交版本更新
+5. 构建全部平台产物
+6. 创建 Git tag
+7. 提示后续 push 和 Release 操作
+
+### 使用方式
+
+Linux/macOS:
 
 ```bash
-go build -ldflags="-s -w" -o <output>
+./scripts/release.sh 0.4.0
 ```
 
-**参数说明**：
-- `-ldflags="-s -w"` - 减小可执行文件大小
-  - `-s` - 去除符号表
-  - `-w` - 去除 DWARF 调试信息
-- `-o <output>` - 指定输出文件名
+Windows:
 
-**效果**：
-- 可执行文件大小减少约 30%
-- 不影响程序运行性能
-- 调试信息被移除（生产环境推荐）
-
-## 📝 输出文件命名规范
-
-编译后的文件统一命名为：
-```
-find-large-files-{os}-{arch}{ext}
+```powershell
+scripts\release.bat 0.4.0
 ```
 
-**示例**：
-- `find-large-files-windows-amd64.exe`
-- `find-large-files-linux-amd64`
-- `find-large-files-darwin-arm64`
+执行后会生成：
 
-## ⚠️ 注意事项
+- 一个版本提交
+- 一个本地 tag，例如 `v0.4.0`
+- `build/` 目录下的全部构建产物
 
-1. **首次使用需要设置执行权限**（Linux/macOS）：
-   ```bash
-   chmod +x scripts/build.sh
-   ```
+### 推送和 GitHub Release
 
-2. **需要安装 Go 1.25.0+**：
-   ```bash
-   go version
-   ```
+发布脚本不会替你直接推送远端仓库；你需要自行执行：
 
-3. **交叉编译可能需要额外依赖**：
-   - 大部分情况下 Go 自动处理
-   - 如遇到 CGO 相关错误，可能需要安装交叉编译工具链
+```bash
+git push origin <当前分支>
+git push origin v0.4.0
+```
 
-4. **编译输出目录**：
-   - 所有编译产物保存在 `build/` 目录
-   - 该目录会自动创建
+或者：
 
-5. **清理编译产物**：
-   ```bash
-   # Linux/macOS
-   rm -rf build/*
+```bash
+git push origin <当前分支> --follow-tags
+```
 
-   # Windows
-   del /Q build\*
-   ```
+推送 tag 后，GitHub Actions 工作流 [.github/workflows/release.yml](/e:/code/golang/find-large-files/.github/workflows/release.yml) 会自动触发，并执行：
 
-## 🚀 性能对比
+1. 检出代码
+2. 安装 Go 1.25
+3. 运行 `./scripts/build.sh all`
+4. 创建 GitHub Release
+5. 上传全部构建产物到 Release
 
-| 版本 | 文件大小 | 启动速度 | 扫描性能 |
-|------|---------|---------|---------|
-| PowerShell | N/A | 慢 | 慢 (基准) |
-| Go (amd64) | ~3.3MB | 极快 | 10-30x 提升 |
-| Go (arm64) | ~3.2MB | 极快 | 10-30x 提升 |
+### 手动使用 GitHub CLI 发版
 
-## 📚 相关文档
+如果你不想依赖 Actions，也可以在本地构建后手动创建 Release：
 
-- [README.md](../README.md) - 项目主文档
-- [docs/DESIGN.md](../docs/DESIGN.md) - 技术设计文档
-- [docs/DEV_GUIDE.md](../docs/DEV_GUIDE.md) - 开发指南
-- [docs/QUICKSTART.md](../docs/QUICKSTART.md) - 快速使用指南
+```bash
+gh release create v0.4.0 build/* --title "v0.4.0" --notes "Release 0.4.0"
+```
 
-## 🤝 贡献
+前提：
 
-如需添加新的构建脚本或改进现有脚本，欢迎提交 Pull Request！
+- 已经 `git push` 对应 tag
+- 本机已安装并登录 `gh`
+
+## 本地扫描脚本
+
+`find-largest-local.ps1` 是一个 PowerShell 包装器，用于在 Windows 本地快速启动当前项目的准确扫描。
+
+示例：
+
+```powershell
+scripts\find-largest-local.ps1
+scripts\find-largest-local.ps1 -Path D:\ -Top 30
+scripts\find-largest-local.ps1 -Path D:\ -Exclude "node_modules,.git" -ExportCsvPath D:\scan
+```
+
+行为：
+
+- 优先调用已编译好的程序
+- 如果没找到可执行文件，则回退到 `go run .`
+- 与主程序保持相同语义，只做全量准确扫描

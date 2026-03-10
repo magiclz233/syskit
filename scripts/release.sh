@@ -22,9 +22,11 @@ fi
 
 VERSION=$1
 TAG="v${VERSION}"
+CURRENT_BRANCH=$(git branch --show-current)
 
 echo -e "${BLUE}=== Find Large Files Release Script ===${NC}"
 echo -e "${YELLOW}Version: ${VERSION}${NC}"
+echo -e "${YELLOW}Branch: ${CURRENT_BRANCH}${NC}"
 echo ""
 
 # Check if tag already exists
@@ -69,14 +71,15 @@ echo -e "${GREEN}=== Release preparation completed ===${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "1. Push the changes and tag:"
-echo -e "   ${BLUE}git push origin master${NC}"
+echo -e "   ${BLUE}git push origin ${CURRENT_BRANCH}${NC}"
 echo -e "   ${BLUE}git push origin ${TAG}${NC}"
+echo -e "   ${BLUE}git push origin ${CURRENT_BRANCH} --follow-tags${NC}"
 echo ""
-echo "2. Go to GitHub and create a new release:"
-echo "   https://github.com/YOUR_USERNAME/find-large-files/releases/new"
+echo "2. Wait for GitHub Actions workflow '.github/workflows/release.yml' to run."
+echo "   It is triggered by pushing tag ${TAG}."
 echo ""
-echo "3. Upload the following files from build/ directory:"
+echo "3. Release assets expected from CI:"
 ls -lh build/
 echo ""
-echo -e "${YELLOW}Or use GitHub CLI to create release automatically:${NC}"
+echo -e "${YELLOW}4. Optional manual GitHub CLI release command:${NC}"
 echo -e "   ${BLUE}gh release create ${TAG} build/* --title \"${TAG}\" --notes \"Release ${VERSION}\"${NC}"
