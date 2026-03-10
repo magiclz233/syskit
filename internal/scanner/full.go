@@ -30,6 +30,7 @@ type FullScanner struct {
 	totalFiles   int64
 	totalDirs    int64
 	scannedBytes int64
+	activeTasks  int64 // 活跃任务计数
 
 	// 文件列表
 	files   []FileInfo
@@ -38,7 +39,6 @@ type FullScanner struct {
 	// Worker Pool
 	// Go 语言知识点：使用 channel 作为任务队列
 	taskQueue chan *scanTask // 待扫描目录队列
-	wg        sync.WaitGroup // 等待所有任务完成
 	workerWg  sync.WaitGroup // 等待所有 worker 完成
 
 	// 进度显示
@@ -106,11 +106,16 @@ func (s *FullScanner) Scan() (*ScanResult, error) {
 	}
 
 	// 提交第一个任务（根目录）
-	s.wg.Add(1)
+	atomic.AddInt64(&s.activeTasks, 1)
 	s.taskQueue <- &scanTask{path: cleanPath}
 
 	// 等待所有任务完成
-	s.wg.Wait()
+	for {
+		time.Sleep(10 * time.Millisecond)
+		if atomic.LoadInt64(&s.activeTasks) == 0 {
+			break
+		}
+	}
 
 	// 关闭任务队列，通知 worker 退出
 	close(s.taskQueue)
@@ -155,7 +160,7 @@ func (s *FullScanner) worker() {
 	// Go 语言知识点：for range channel 会阻塞等待，直到 channel 关闭
 	for task := range s.taskQueue {
 		s.scanDir(task.path)
-		s.wg.Done()
+		atomic.AddInt64(&s.activeTasks, -1)
 	}
 }
 
@@ -187,10 +192,17 @@ func (s *FullScanner) scanDir(dirPath string) {
 			// 初始化目录大小
 			s.dirSizes.Store(fullPath, new(int64))
 
-			// 提交新任务到队列
-			// Go 语言知识点：通过 channel 发送任务给 worker
-			s.wg.Add(1)
-			s.taskQueue <- &scanTask{path: fullPath}
+			// 提交新任务到队列（非阻塞）
+			atomic.AddInt64(&s.activeTasks, 1)
+			select {
+			case s.taskQueue <- &scanTask{path: fullPath}:
+				// 成功提交
+			default:
+				// 队列满了，使用 goroutine 异步提交
+				go func(path string) {
+					s.taskQueue <- &scanTask{path: path}
+				}(fullPath)
+			}
 
 		} else {
 			// 处理文件

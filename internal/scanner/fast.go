@@ -71,10 +71,8 @@ const (
 
 // NewFastScanner 创建快速扫描器
 func NewFastScanner(options *ScanOptions) *FastScanner {
-	// 如果没有设置深度限制，默认为 3 层
-	if options.MaxDepth == 0 {
-		options.MaxDepth = 3
-	}
+	// 快速模式不使用深度限制，而是通过跳过依赖目录来加速
+	// 如果用户明确设置了深度限制，则保留
 
 	// 自动添加常见大目录到排除列表
 	excludeMap := make(map[string]bool)
@@ -113,7 +111,11 @@ func (s *FastScanner) Scan() (*ScanResult, error) {
 	s.dirSizes.Store(cleanPath, new(int64))
 
 	fmt.Printf("\n=== 快速扫描模式 ===\n")
-	fmt.Printf("最大深度: %d 层\n", s.options.MaxDepth)
+	if s.options.MaxDepth > 0 {
+		fmt.Printf("最大深度: %d 层\n", s.options.MaxDepth)
+	} else {
+		fmt.Printf("扫描深度: 无限制\n")
+	}
 	fmt.Printf("大文件阈值: 100 MB\n")
 	fmt.Printf("自动排除: %d 种常见大目录\n", len(s.options.ExcludeDirs))
 	fmt.Println("正在扫描...")
@@ -161,18 +163,15 @@ func (s *FastScanner) Scan() (*ScanResult, error) {
 func (s *FastScanner) scanDir(dirPath string, depth int) {
 	defer s.wg.Done()
 
-	// 检查深度限制
-	if s.options.MaxDepth > 0 && depth >= s.options.MaxDepth {
-		atomic.AddInt64(&s.skippedDirs, 1)
-		return
-	}
-
 	// 读取目录内容
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		// 权限不足或其他错误，跳过
 		return
 	}
+
+	// 检查是否达到深度限制
+	reachedDepthLimit := s.options.MaxDepth > 0 && depth >= s.options.MaxDepth
 
 	// 遍历目录中的所有条目
 	for _, entry := range entries {
@@ -191,9 +190,13 @@ func (s *FastScanner) scanDir(dirPath string, depth int) {
 			// 初始化目录大小
 			s.dirSizes.Store(fullPath, new(int64))
 
-			// 为子目录启动新的 goroutine
-			s.wg.Add(1)
-			go s.scanDir(fullPath, depth+1)
+			// 如果未达到深度限制，继续递归扫描子目录
+			if !reachedDepthLimit {
+				s.wg.Add(1)
+				go s.scanDir(fullPath, depth+1)
+			} else {
+				atomic.AddInt64(&s.skippedDirs, 1)
+			}
 
 		} else {
 			// 处理文件

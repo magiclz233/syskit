@@ -74,11 +74,24 @@ func main() {
 	if flag.NArg() > 0 {
 		scanPath = flag.Arg(0)
 	} else {
-		var err error
-		scanPath, err = os.Getwd()
+		// 获取当前目录作为默认值
+		currentDir, err := os.Getwd()
 		if err != nil {
 			fmt.Printf("错误: 无法获取当前目录: %v\n", err)
 			os.Exit(1)
+		}
+
+		// 提示用户输入路径
+		fmt.Printf("请输入要扫描的目录路径（直接回车使用当前目录: %s）: ", currentDir)
+		var input string
+		fmt.Scanln(&input)
+
+		// 如果用户直接回车，使用当前目录
+		input = strings.TrimSpace(input)
+		if input == "" {
+			scanPath = currentDir
+		} else {
+			scanPath = input
 		}
 	}
 
@@ -163,9 +176,12 @@ func printUsage() {
 	fmt.Println("  [路径]              要扫描的目录路径（默认: 当前目录）")
 	fmt.Println()
 	fmt.Println("选项:")
-	fmt.Println("  -m, --mode          扫描模式: hybrid(混合,默认), fast(快速), full(完整)")
+	fmt.Println("  -m, --mode          扫描模式:")
+	fmt.Println("                        hybrid - 混合模式（默认，快速找大目录+深入扫描）")
+	fmt.Println("                        fast   - 快速模式（跳过依赖目录，只记录大文件>100MB）")
+	fmt.Println("                        full   - 完整模式（扫描所有文件，记录所有大小）")
 	fmt.Println("  -t, --top           显示 Top N 结果（默认: 20）")
-	fmt.Println("  --max-depth         最大扫描深度（仅快速模式，默认: 3，0=无限制）")
+	fmt.Println("  --max-depth         最大扫描深度（可选，0=无限制）")
 	fmt.Println("  --min-size          最小文件大小阈值（仅快速模式，默认: 100MB）")
 	fmt.Println("  --exclude           排除的目录（逗号分隔，如: node_modules,.git）")
 	fmt.Println("  --include-files     包含文件结果（默认: true）")
@@ -175,8 +191,19 @@ func printUsage() {
 	fmt.Println("  -v, --version       显示版本信息")
 	fmt.Println("  -h, --help          显示帮助信息")
 	fmt.Println()
+	fmt.Println("模式说明:")
+	fmt.Println("  hybrid - 推荐用于大多数场景，快速找到大目录后深入扫描")
+	fmt.Println("  fast   - 跳过依赖目录（node_modules等），只记录大文件，速度快")
+	fmt.Println("  full   - 扫描所有文件并记录，统计最完整但速度较慢")
+	fmt.Println()
 	fmt.Println("示例:")
-	fmt.Println("  # 混合模式（默认，推荐）")
+	fmt.Println("  # 快速扫描整个 D 盘（推荐，跳过依赖目录）")
+	fmt.Println("  find-large-files --mode fast D:\\")
+	fmt.Println()
+	fmt.Println("  # 完整扫描整个 D 盘（最准确，但较慢）")
+	fmt.Println("  find-large-files --mode full D:\\")
+	fmt.Println()
+	fmt.Println("  # 混合模式（默认，快速找大文件）")
 	fmt.Println("  find-large-files D:\\")
 	fmt.Println()
 	fmt.Println("  # 快速模式 - 自定义配置")

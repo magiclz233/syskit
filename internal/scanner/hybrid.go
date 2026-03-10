@@ -55,15 +55,15 @@ func (h *HybridScanner) Scan() (*ScanResult, error) {
 	fmt.Println("两阶段渐进式扫描，快速定位大文件")
 	fmt.Println()
 
-	// ========== 阶段 1：浅层快速扫描 ==========
+	// ========== 阶段 1：快速找出大目录 ==========
 	fmt.Println("【阶段 1/2】快速扫描目录结构...")
-	fmt.Println("策略：只扫描前 2 层，快速找出大目录")
+	fmt.Println("策略：扫描所有目录，跳过依赖目录，快速找出大目录")
 	fmt.Println()
 
 	phase1Options := &ScanOptions{
 		RootPath:     h.options.RootPath,
 		TopN:         h.options.TopN,
-		MaxDepth:     2,              // 只扫描前2层
+		MaxDepth:     0,              // 不限制深度
 		IncludeFiles: false,          // 不记录文件
 		IncludeDirs:  true,           // 只记录目录
 		ShowProgress: false,          // 不显示进度
