@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.25'
+
+    - name: Build all platforms
+      run: |
+        chmod +x scripts/build.sh
+        ./scripts/build.sh all
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Windows amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-windows-amd64.exe
+        asset_name: find-large-files-windows-amd64.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload Windows 386
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-windows-386.exe
+        asset_name: find-large-files-windows-386.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload Windows arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-windows-arm64.exe
+        asset_name: find-large-files-windows-arm64.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload Linux amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-linux-amd64
+        asset_name: find-large-files-linux-amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload Linux 386
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-linux-386
+        asset_name: find-large-files-linux-386
+        asset_content_type: application/octet-stream
+
+    - name: Upload Linux arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-linux-arm64
+        asset_name: find-large-files-linux-arm64
+        asset_content_type: application/octet-stream
+
+    - name: Upload Linux arm
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-linux-arm
+        asset_name: find-large-files-linux-arm
+        asset_content_type: application/octet-stream
+
+    - name: Upload macOS amd64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-darwin-amd64
+        asset_name: find-large-files-darwin-amd64
+        asset_content_type: application/octet-stream
+
+    - name: Upload macOS arm64
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/find-large-files-darwin-arm64
+        asset_name: find-large-files-darwin-arm64
+        asset_content_type: application/octet-stream
