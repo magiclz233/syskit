@@ -1,0 +1,28 @@
+# 编译产物
+*.exe
+*.out
+find-large-files
+find-large-files-*
+
+# 但保留 build 目录中的编译产物（用于发布）
+!build/
+
+# Go 相关
+*.test
+*.prof
+coverage.txt
+
+# IDE 相关
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统相关
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.log
