@@ -1,5 +1,7 @@
-// Package main 是程序的入口点
-// Go 程序必须有一个 main 包和 main 函数
+// Package main 是命令行程序的入口包。
+// 这个文件负责两类事情：
+// 1. 解析用户输入的命令行参数；
+// 2. 调用扫描器并把结果格式化输出到终端或文件。
 package main
 
 import (
@@ -13,31 +15,36 @@ import (
 	"strings"
 )
 
-const version = "0.3.0"
+// version 是程序当前版本号。
+// 发布脚本会直接修改这里的值，因此这里保持为一个简单常量，便于自动替换。
+const version = "0.4.0"
 
-// 命令行参数
+// 这些变量对应命令行参数。
+// 使用包级变量配合 flag 包，是 Go 命令行工具里最常见、最直接的写法。
 var (
-	mode         string
-	topN         int
-	maxDepth     int
-	minSizeStr   string
-	excludeDirs  string
+	// topN 控制最终展示多少条“最大文件”和“最大子目录”结果。
+	topN int
+	// excludeDirs 是逗号分隔的目录名列表，扫描时会整目录跳过。
+	excludeDirs string
+	// includeFiles 控制是否输出最大文件列表。
 	includeFiles bool
-	includeDirs  bool
-	format       string
-	exportCSV    string
-	showVersion  bool
-	showHelp     bool
+	// includeDirs 控制是否输出最大子目录列表。
+	includeDirs bool
+	// format 控制最终输出格式，支持 table / json / csv。
+	format string
+	// exportCSV 是 CSV 导出文件名前缀，例如 report 会导出 report_dirs.csv 和 report_files.csv。
+	exportCSV string
+	// showVersion 为 true 时只打印版本并退出。
+	showVersion bool
+	// showHelp 为 true 时只打印帮助并退出。
+	showHelp bool
 )
 
+// init 在 main 之前执行。
+// 这里集中注册所有命令行参数，并把默认帮助输出替换为自定义版本。
 func init() {
-	// 定义命令行参数
-	flag.StringVar(&mode, "mode", "hybrid", "扫描模式: hybrid(混合), fast(快速), full(完整)")
-	flag.StringVar(&mode, "m", "hybrid", "扫描模式（简写）")
 	flag.IntVar(&topN, "top", 20, "显示 Top N 结果")
 	flag.IntVar(&topN, "t", 20, "显示 Top N 结果（简写）")
-	flag.IntVar(&maxDepth, "max-depth", 3, "最大扫描深度（仅快速模式，0=无限制）")
-	flag.StringVar(&minSizeStr, "min-size", "100MB", "最小文件大小阈值（仅快速模式，如: 50MB, 1GB）")
 	flag.StringVar(&excludeDirs, "exclude", "", "排除的目录（逗号分隔，如: node_modules,.git）")
 	flag.BoolVar(&includeFiles, "include-files", true, "包含文件结果")
 	flag.BoolVar(&includeDirs, "include-dirs", true, "包含目录结果")
@@ -48,45 +55,48 @@ func init() {
 	flag.BoolVar(&showHelp, "help", false, "显示帮助信息")
 	flag.BoolVar(&showHelp, "h", false, "显示帮助信息（简写）")
 
-	// 自定义 Usage
+	// 替换默认帮助文本，确保帮助内容和项目的真实行为一致。
 	flag.Usage = printUsage
 }
 
+// main 是程序主流程。
+// 整个流程很直白：
+// 1. 解析参数；
+// 2. 确定扫描路径；
+// 3. 构造扫描选项；
+// 4. 执行准确扫描；
+// 5. 根据用户要求输出结果。
 func main() {
-	// 解析命令行参数
 	flag.Parse()
 
-	// 显示版本信息
 	if showVersion {
 		fmt.Printf("find-large-files version %s\n", version)
 		fmt.Println("跨平台文件系统分析工具")
 		os.Exit(0)
 	}
 
-	// 显示帮助信息
 	if showHelp {
 		printUsage()
 		os.Exit(0)
 	}
 
-	// 获取扫描路径
+	// scanPath 是本次扫描的根路径。
+	// 如果用户在命令行里已经给了位置参数，就直接使用；
+	// 否则交互式询问，回车默认使用当前工作目录。
 	var scanPath string
 	if flag.NArg() > 0 {
 		scanPath = flag.Arg(0)
 	} else {
-		// 获取当前目录作为默认值
 		currentDir, err := os.Getwd()
 		if err != nil {
 			fmt.Printf("错误: 无法获取当前目录: %v\n", err)
 			os.Exit(1)
 		}
 
-		// 提示用户输入路径
 		fmt.Printf("请输入要扫描的目录路径（直接回车使用当前目录: %s）: ", currentDir)
 		var input string
 		fmt.Scanln(&input)
 
-		// 如果用户直接回车，使用当前目录
 		input = strings.TrimSpace(input)
 		if input == "" {
 			scanPath = currentDir
@@ -95,30 +105,19 @@ func main() {
 		}
 	}
 
-	// 打印欢迎信息
 	fmt.Println("=== 文件/文件夹大小分析工具 ===")
 	fmt.Printf("版本: %s\n", version)
 	fmt.Println("支持平台: Windows, Linux, macOS")
 	fmt.Println()
 
-	// 创建扫描选项
+	// NewScanOptions 会先给出一组默认值，再由 CLI 参数覆盖需要自定义的部分。
 	options := scanner.NewScanOptions(scanPath)
 	options.TopN = topN
-	options.MaxDepth = maxDepth
 	options.IncludeFiles = includeFiles
 	options.IncludeDirs = includeDirs
 
-	// 解析最小文件大小
-	if minSizeStr != "" {
-		minSize, err := utils.ParseSize(minSizeStr)
-		if err != nil {
-			fmt.Printf("错误: 无效的最小文件大小: %v\n", err)
-			os.Exit(1)
-		}
-		options.MinSize = minSize
-	}
-
-	// 解析排除目录
+	// --exclude 传进来的是一个字符串，这里把它拆成切片。
+	// 同时做 TrimSpace，避免用户写成 "node_modules, .git" 时把空格也带进去。
 	if excludeDirs != "" {
 		options.ExcludeDirs = strings.Split(excludeDirs, ",")
 		for i := range options.ExcludeDirs {
@@ -126,31 +125,17 @@ func main() {
 		}
 	}
 
-	// 根据模式创建扫描器
-	var result *scanner.ScanResult
-	var err error
-
-	switch strings.ToLower(mode) {
-	case "hybrid":
-		s := scanner.NewHybridScanner(options)
-		result, err = s.Scan()
-	case "fast":
-		s := scanner.NewFastScanner(options)
-		result, err = s.Scan()
-	case "full":
-		s := scanner.NewFullScanner(options)
-		result, err = s.Scan()
-	default:
-		fmt.Printf("错误: 未知的扫描模式: %s（支持: hybrid, fast, full）\n", mode)
-		os.Exit(1)
-	}
-
+	// 当前项目只保留一套“全量准确扫描”实现。
+	// 这样可以保证输出的最大文件和最大子目录是完整结果，而不是近似估算。
+	s := scanner.NewScanner(options)
+	result, err := s.Scan()
 	if err != nil {
 		fmt.Printf("错误: 扫描失败: %v\n", err)
 		os.Exit(1)
 	}
 
-	// 根据格式输出结果
+	// 根据 --format 选择最终输出方式。
+	// table 适合终端直接查看，json/csv 适合后续处理或导入其它工具。
 	switch strings.ToLower(format) {
 	case "json":
 		outputJSON(result)
@@ -160,7 +145,8 @@ func main() {
 		outputTable(result)
 	}
 
-	// 如果指定了 CSV 导出路径
+	// 如果用户显式指定了 --export-csv，同时当前主输出格式又不是 csv，
+	// 那么除了终端输出之外，再额外导出一份 CSV 文件。
 	if exportCSV != "" && format != "csv" {
 		outputCSV(result, exportCSV)
 	}
@@ -168,7 +154,8 @@ func main() {
 	fmt.Println("\n扫描完成！")
 }
 
-// printUsage 打印使用帮助
+// printUsage 输出帮助文本。
+// 这里不依赖 flag 默认生成的帮助，是因为我们希望把“输出语义”和“常用示例”一起写清楚。
 func printUsage() {
 	fmt.Println("用法: find-large-files [选项] [路径]")
 	fmt.Println()
@@ -176,13 +163,7 @@ func printUsage() {
 	fmt.Println("  [路径]              要扫描的目录路径（默认: 当前目录）")
 	fmt.Println()
 	fmt.Println("选项:")
-	fmt.Println("  -m, --mode          扫描模式:")
-	fmt.Println("                        hybrid - 混合模式（默认，快速找大目录+深入扫描）")
-	fmt.Println("                        fast   - 快速模式（跳过依赖目录，只记录大文件>100MB）")
-	fmt.Println("                        full   - 完整模式（扫描所有文件，记录所有大小）")
 	fmt.Println("  -t, --top           显示 Top N 结果（默认: 20）")
-	fmt.Println("  --max-depth         最大扫描深度（可选，0=无限制）")
-	fmt.Println("  --min-size          最小文件大小阈值（仅快速模式，默认: 100MB）")
 	fmt.Println("  --exclude           排除的目录（逗号分隔，如: node_modules,.git）")
 	fmt.Println("  --include-files     包含文件结果（默认: true）")
 	fmt.Println("  --include-dirs      包含目录结果（默认: true）")
@@ -191,26 +172,16 @@ func printUsage() {
 	fmt.Println("  -v, --version       显示版本信息")
 	fmt.Println("  -h, --help          显示帮助信息")
 	fmt.Println()
-	fmt.Println("模式说明:")
-	fmt.Println("  hybrid - 推荐用于大多数场景，快速找到大目录后深入扫描")
-	fmt.Println("  fast   - 跳过依赖目录（node_modules等），只记录大文件，速度快")
-	fmt.Println("  full   - 扫描所有文件并记录，统计最完整但速度较慢")
+	fmt.Println("说明:")
+	fmt.Println("  程序始终执行全量准确扫描，返回目录树中最大的子目录和最大的文件。")
+	fmt.Println("  结果中的目录列表不包含根目录本身，只显示其下扫描到的子目录。")
 	fmt.Println()
 	fmt.Println("示例:")
-	fmt.Println("  # 快速扫描整个 D 盘（推荐，跳过依赖目录）")
-	fmt.Println("  find-large-files --mode fast D:\\")
-	fmt.Println()
-	fmt.Println("  # 完整扫描整个 D 盘（最准确，但较慢）")
-	fmt.Println("  find-large-files --mode full D:\\")
-	fmt.Println()
-	fmt.Println("  # 混合模式（默认，快速找大文件）")
+	fmt.Println("  # 扫描整个 D 盘")
 	fmt.Println("  find-large-files D:\\")
 	fmt.Println()
-	fmt.Println("  # 快速模式 - 自定义配置")
-	fmt.Println("  find-large-files --mode fast --max-depth 5 --min-size 50MB D:\\")
-	fmt.Println()
-	fmt.Println("  # 完整模式 - 排除常见大目录")
-	fmt.Println("  find-large-files --mode full --exclude node_modules,.git D:\\")
+	fmt.Println("  # 排除常见依赖目录")
+	fmt.Println("  find-large-files --exclude node_modules,.git,vendor D:\\")
 	fmt.Println()
 	fmt.Println("  # JSON 输出")
 	fmt.Println("  find-large-files --format json D:\\")
@@ -219,7 +190,11 @@ func printUsage() {
 	fmt.Println("  find-large-files --export-csv D:\\result D:\\")
 }
 
-// outputTable 表格输出
+// outputTable 负责人类可读的终端表格输出。
+// 这是默认输出方式，重点是让用户直接看清：
+// 1. 扫描规模；
+// 2. 最大的子目录；
+// 3. 最大的文件。
 func outputTable(result *scanner.ScanResult) {
 	fmt.Println("\n" + strings.Repeat("=", 80))
 	fmt.Println("扫描统计")
@@ -231,10 +206,9 @@ func outputTable(result *scanner.ScanResult) {
 	fmt.Printf("  总耗时: %v\n", result.ScanDuration)
 	fmt.Println()
 
-	// 显示 Top N 目录
 	if len(result.TopDirs) > 0 {
 		fmt.Println(strings.Repeat("=", 80))
-		fmt.Printf("Top %d 目录（按累计大小排序）\n", len(result.TopDirs))
+		fmt.Printf("Top %d 子目录（按累计大小排序）\n", len(result.TopDirs))
 		fmt.Println(strings.Repeat("=", 80))
 		fmt.Printf("%-4s %-12s %s\n", "序号", "大小", "路径")
 		fmt.Println(strings.Repeat("-", 80))
@@ -244,7 +218,6 @@ func outputTable(result *scanner.ScanResult) {
 		fmt.Println()
 	}
 
-	// 显示 Top N 文件
 	if len(result.TopFiles) > 0 {
 		fmt.Println(strings.Repeat("=", 80))
 		fmt.Printf("Top %d 文件（按单文件大小排序）\n", len(result.TopFiles))
@@ -258,7 +231,8 @@ func outputTable(result *scanner.ScanResult) {
 	}
 }
 
-// outputJSON JSON 输出
+// outputJSON 把扫描结果序列化成缩进后的 JSON。
+// 这种格式适合喂给脚本、其它程序，或者直接保存成报告文件。
 func outputJSON(result *scanner.ScanResult) {
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -268,13 +242,13 @@ func outputJSON(result *scanner.ScanResult) {
 	fmt.Println(string(data))
 }
 
-// outputCSV CSV 输出
+// outputCSV 把目录和文件结果分别导出成两个 CSV 文件。
+// 这么做比塞进一个文件更清晰，因为两类数据字段并不完全一致。
 func outputCSV(result *scanner.ScanResult, prefix string) {
 	if prefix == "" {
 		prefix = "result"
 	}
 
-	// 导出目录结果
 	if len(result.TopDirs) > 0 {
 		dirsFile := prefix + "_dirs.csv"
 		f, err := os.Create(dirsFile)
@@ -285,10 +259,10 @@ func outputCSV(result *scanner.ScanResult, prefix string) {
 			writer := csv.NewWriter(f)
 			defer writer.Flush()
 
-			// 写入表头
-			writer.Write([]string{"序号", "大小(字节)", "大小(格式化)", "路径"})
+			// 目录结果导出“原始字节数 + 格式化大小 + 路径”，
+			// 这样既方便程序处理，也方便人直接打开阅读。
+			writer.Write([]string{"序号", "大小(字节)", "大小(格式化)", "子目录路径"})
 
-			// 写入数据
 			for i, dir := range result.TopDirs {
 				writer.Write([]string{
 					fmt.Sprintf("%d", i+1),
@@ -298,11 +272,10 @@ func outputCSV(result *scanner.ScanResult, prefix string) {
 				})
 			}
 
-			fmt.Printf("✓ 目录结果已导出到: %s\n", dirsFile)
+			fmt.Printf("✓ 子目录结果已导出到: %s\n", dirsFile)
 		}
 	}
 
-	// 导出文件结果
 	if len(result.TopFiles) > 0 {
 		filesFile := prefix + "_files.csv"
 		f, err := os.Create(filesFile)
@@ -313,10 +286,8 @@ func outputCSV(result *scanner.ScanResult, prefix string) {
 			writer := csv.NewWriter(f)
 			defer writer.Flush()
 
-			// 写入表头
 			writer.Write([]string{"序号", "大小(字节)", "大小(格式化)", "路径", "修改时间"})
 
-			// 写入数据
 			for i, file := range result.TopFiles {
 				writer.Write([]string{
 					fmt.Sprintf("%d", i+1),

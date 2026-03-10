@@ -1,66 +1,77 @@
-// Package scanner 提供文件系统扫描功能
-// 这是一个内部包（internal），只能被本项目导入，不能被外部项目使用
+// Package scanner 提供扫描目录树所需的数据结构和核心扫描逻辑。
+// 这个包放在 internal 下，表示它只供当前项目内部使用，不对外暴露为公共库。
 package scanner
 
 import "time"
 
-// FileInfo 文件信息结构体
-// 存储单个文件的基本信息
+// FileInfo 描述一个文件在最终结果中需要展示的信息。
+// 这里只保留“路径、大小、修改时间”三项，因为这三项已经足够支撑终端输出和 CSV/JSON 导出。
 type FileInfo struct {
-	Path    string    // 文件完整路径（使用 filepath 包处理，跨平台兼容）
-	Size    int64     // 文件大小（字节）
-	ModTime time.Time // 最后修改时间
+	// Path 是文件的完整路径或相对扫描根目录的路径表示。
+	Path string
+	// Size 是文件的原始字节数，排序时直接用它做比较。
+	Size int64
+	// ModTime 是文件最后修改时间，导出 CSV 时会一起带出。
+	ModTime time.Time
 }
 
-// DirInfo 目录信息结构体
-// 存储目录的累计大小信息
+// DirInfo 描述一个目录的累计大小信息。
+// 这里的“目录大小”不是目录条目自身占用多少，而是它整棵子树下所有文件大小之和。
 type DirInfo struct {
-	Path      string // 目录完整路径
-	TotalSize int64  // 目录总大小（包含所有子文件和子目录）
-	FileCount int    // 目录下的文件数量
-	DirCount  int    // 目录下的子目录数量
+	// Path 是目录路径。
+	Path string
+	// TotalSize 是该目录下所有后代文件的累计总字节数。
+	TotalSize int64
+	// FileCount 和 DirCount 当前还没有参与结果计算，先保留字段以便未来扩展。
+	FileCount int
+	DirCount  int
 }
 
-// ScanOptions 扫描选项
-// 配置扫描行为的所有参数
+// ScanOptions 表示一次扫描任务的配置。
+// 当前项目已经收敛成单一准确扫描模式，因此这里不再保留旧的“深度限制”“近似扫描”等参数。
 type ScanOptions struct {
-	RootPath     string   // 根目录路径（要扫描的起始目录）
-	TopN         int      // 保留 Top N 结果（默认 10）
-	MinSize      int64    // 最小文件大小阈值（字节），小于此值的文件会被过滤
-	MaxDepth     int      // 最大扫描深度（0 表示不限制）
-	IncludeFiles bool     // 是否包含文件结果
-	IncludeDirs  bool     // 是否包含目录结果
-	ShowProgress bool     // 是否显示进度
-	ExcludeDirs  []string // 要排除的目录名列表（如 node_modules, .git）
-	IncludeExt   []string // 包含的文件扩展名（如 .log, .tmp）
-	ExcludeExt   []string // 排除的文件扩展名
+	// RootPath 是扫描起点，也就是整棵目录树的根路径。
+	RootPath string
+	// TopN 表示最终最多保留多少条目录和文件结果。
+	TopN int
+	// IncludeFiles 控制是否生成“最大文件”结果集。
+	IncludeFiles bool
+	// IncludeDirs 控制是否生成“最大子目录”结果集。
+	IncludeDirs bool
+	// ShowProgress 控制扫描过程中是否打印进度。
+	ShowProgress bool
+	// ExcludeDirs 是要跳过的目录名列表，只按目录名匹配，不按完整路径匹配。
+	ExcludeDirs []string
 }
 
-// ScanResult 扫描结果
-// 包含扫描完成后的所有统计信息
+// ScanResult 表示一次扫描的完整输出结果。
+// 这是 scanner 包和 main 包之间最重要的数据交换结构。
 type ScanResult struct {
-	TopFiles      []FileInfo    // Top N 最大文件列表
-	TopDirs       []DirInfo     // Top N 最大目录列表
-	TotalSize     int64         // 扫描到的总大小
-	TotalFiles    int           // 扫描到的总文件数
-	TotalDirs     int           // 扫描到的总目录数
-	ScanDuration  time.Duration // 扫描耗时
-	ProcessedPath string        // 实际扫描的路径（可能经过清理和规范化）
+	// TopFiles 是按文件大小降序排列后的结果集。
+	TopFiles []FileInfo
+	// TopDirs 是按目录累计大小降序排列后的结果集。
+	TopDirs []DirInfo
+	// TotalSize 是扫描根目录下所有文件的总大小。
+	TotalSize int64
+	// TotalFiles 是实际处理到的文件数量。
+	TotalFiles int
+	// TotalDirs 是实际处理到的目录数量，不包含扫描根目录本身。
+	TotalDirs int
+	// ScanDuration 是本次扫描总耗时。
+	ScanDuration time.Duration
+	// ProcessedPath 是最终参与扫描的根路径。
+	ProcessedPath string
 }
 
-// NewScanOptions 创建默认的扫描选项
-// 这是一个工厂函数，返回带有合理默认值的 ScanOptions
+// NewScanOptions 返回一组适合大多数场景的默认选项。
+// 调用方通常先拿到这组默认值，再按命令行参数覆盖其中一部分字段。
 func NewScanOptions(rootPath string) *ScanOptions {
 	return &ScanOptions{
 		RootPath:     rootPath,
-		TopN:         10,           // 默认 Top 10
-		MinSize:      0,            // 默认不过滤
-		MaxDepth:     0,            // 默认不限制深度
-		IncludeFiles: true,         // 默认包含文件
-		IncludeDirs:  true,         // 默认包含目录
-		ShowProgress: true,         // 默认显示进度
-		ExcludeDirs:  []string{},   // 默认不排除任何目录
-		IncludeExt:   []string{},   // 默认包含所有扩展名
-		ExcludeExt:   []string{},   // 默认不排除任何扩展名
+		TopN:         10,
+		IncludeFiles: true,
+		IncludeDirs:  true,
+		ShowProgress: true,
+		ExcludeDirs:  []string{},
 	}
 }
