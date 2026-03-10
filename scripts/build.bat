@@ -4,6 +4,11 @@ REM Usage: build.bat [target]
 
 setlocal enabledelayedexpansion
 
+REM Get script directory and project root
+set SCRIPT_DIR=%~dp0
+set PROJECT_ROOT=%SCRIPT_DIR%..
+cd /d "%PROJECT_ROOT%"
+
 REM Project info
 set APP_NAME=find-large-files
 set BUILD_DIR=build
