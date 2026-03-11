@@ -20,20 +20,20 @@ go test ./...
 
 当前 Release 资产包含以下目标：
 
-- Windows AMD64
-- Windows 386
+- Windows x64
+- Windows x86
 - Windows ARM64
-- Linux AMD64
-- Linux 386
+- Linux x64
+- Linux x86
 - Linux ARM64
-- Linux ARM
-- macOS AMD64
+- Linux ARMv7
+- macOS x64
 - macOS ARM64
 
 产物命名规则：
 
 ```text
-find-large-files-<os>-<arch>[.exe]
+find-large-files-<platform>[.exe]
 ```
 
 ## 本地构建全部产物

@@ -8,7 +8,7 @@ REM   linux-amd64     linux-386     linux-arm64     linux-arm
 REM   darwin-amd64    darwin-arm64
 REM
 REM Output naming:
-REM   build\find-large-files-<os>-<arch>[.exe]
+REM   build\find-large-files-<platform>[.exe]
 
 setlocal enabledelayedexpansion
 
@@ -158,7 +158,8 @@ goto :eof
 set os=%~1
 set arch=%~2
 set ext=%~3
-set output=%BUILD_DIR%\%APP_NAME%-%os%-%arch%%ext%
+call :artifact_label %os% %arch%
+set output=%BUILD_DIR%\%APP_NAME%-%TARGET_LABEL%%ext%
 
 echo Building %os%/%arch%...
 set GOOS=%os%
@@ -171,6 +172,19 @@ if %ERRORLEVEL% EQU 0 (
     echo [FAIL] Build failed: %os%/%arch%
 )
 echo.
+goto :eof
+
+:artifact_label
+set TARGET_LABEL=%~1-%~2
+if /I "%~1-%~2"=="windows-amd64" set TARGET_LABEL=windows-x64
+if /I "%~1-%~2"=="windows-386" set TARGET_LABEL=windows-x86
+if /I "%~1-%~2"=="windows-arm64" set TARGET_LABEL=windows-arm64
+if /I "%~1-%~2"=="linux-amd64" set TARGET_LABEL=linux-x64
+if /I "%~1-%~2"=="linux-386" set TARGET_LABEL=linux-x86
+if /I "%~1-%~2"=="linux-arm64" set TARGET_LABEL=linux-arm64
+if /I "%~1-%~2"=="linux-arm" set TARGET_LABEL=linux-armv7
+if /I "%~1-%~2"=="darwin-amd64" set TARGET_LABEL=macos-x64
+if /I "%~1-%~2"=="darwin-arm64" set TARGET_LABEL=macos-arm64
 goto :eof
 
 :show_help
@@ -202,9 +216,9 @@ echo   build.bat windows-amd64    # Build Windows 64-bit only
 echo   build.bat darwin           # Build all macOS versions
 echo.
 echo Output files:
-echo   build\find-large-files-windows-amd64.exe
-echo   build\find-large-files-linux-arm64
-echo   build\find-large-files-darwin-arm64
+echo   build\find-large-files-windows-x64.exe
+echo   build\find-large-files-linux-x64
+echo   build\find-large-files-macos-arm64
 goto end
 
 :end

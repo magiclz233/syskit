@@ -39,13 +39,33 @@ BUILD_DIR="build"
 # 创建 build 目录
 mkdir -p "$BUILD_DIR"
 
+# 将 GOOS/GOARCH 映射为更易懂的产物命名。
+artifact_label() {
+    local os=$1
+    local arch=$2
+    case "${os}-${arch}" in
+        windows-amd64) echo "windows-x64" ;;
+        windows-386) echo "windows-x86" ;;
+        windows-arm64) echo "windows-arm64" ;;
+        linux-amd64) echo "linux-x64" ;;
+        linux-386) echo "linux-x86" ;;
+        linux-arm64) echo "linux-arm64" ;;
+        linux-arm) echo "linux-armv7" ;;
+        darwin-amd64) echo "macos-x64" ;;
+        darwin-arm64) echo "macos-arm64" ;;
+        *) echo "${os}-${arch}" ;;
+    esac
+}
+
 # 编译函数
 build() {
     local os=$1
     local arch=$2
     local ext=$3
 
-    local output="${BUILD_DIR}/${APP_NAME}-${os}-${arch}${ext}"
+    local label
+    label=$(artifact_label "$os" "$arch")
+    local output="${BUILD_DIR}/${APP_NAME}-${label}${ext}"
 
     echo -e "${BLUE}正在编译 ${os}/${arch}...${NC}"
     GOOS=$os GOARCH=$arch go build -ldflags="-s -w" -o "$output"
@@ -201,8 +221,8 @@ show_help() {
     echo "  ./build.sh darwin           # 编译所有 macOS 版本"
     echo ""
     echo "输出文件命名:"
-    echo "  build/find-large-files-<os>-<arch>[.exe]"
-    echo "  示例: build/find-large-files-linux-arm64"
+    echo "  build/find-large-files-<platform>[.exe]"
+    echo "  示例: build/find-large-files-linux-x64"
 }
 
 # 主逻辑

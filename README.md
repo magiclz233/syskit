@@ -64,14 +64,14 @@ scripts\build.bat darwin-arm64
 产物统一输出到 `build/`，文件名格式为：
 
 ```text
-find-large-files-<os>-<arch>[.exe]
+find-large-files-<platform>[.exe]
 ```
 
 示例：
 
-- `find-large-files-windows-amd64.exe`
+- `find-large-files-windows-x64.exe`
 - `find-large-files-linux-arm64`
-- `find-large-files-darwin-arm64`
+- `find-large-files-macos-arm64`
 
 ## 发布
 
