@@ -1,302 +1,290 @@
-# syskit CLI 命令规范文档
+# syskit CLI 命令规范（对齐版）
 
-## 文档信息
-- 文档版本：v1.1
-- 对应 PRD：v1.3
-- 文档日期：2026-03-11
-- 目标读者：研发、测试、技术写作
+## 1. 文档定位
 
-## 1. 全局参数
+- 文档版本：v3.0
+- 更新日期：2026-03-12
+- 主文档来源：`docs/PRD.md`
+- 对齐文档：
+  - `docs/SYSKIT_PRODUCT_PRD.md`
+  - `docs/SYSKIT_ARCHITECTURE.md`
+  - `docs/SYSKIT_RULES_CATALOG.md`
 
-所有命令支持以下全局参数：
+本文件负责：
 
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--output` | string | `table` | 输出格式：`table`/`json`/`markdown` |
-| `--json` | bool | `false` | `--output json` 的快捷写法 |
-| `--config` | string | 见配置章节 | 指定配置文件路径 |
-| `--policy` | string | 见配置章节 | 指定策略文件路径 |
-| `--verbose` / `-v` | bool | `false` | 详细输出模式 |
-| `--quiet` / `-q` | bool | `false` | 静默模式，仅输出结果 |
-| `--no-color` | bool | `false` | 禁用彩色输出 |
-| `--help` / `-h` | bool | - | 显示帮助信息 |
-| `--version` | bool | - | 显示版本信息 |
+1. 唯一正式命令树。
+2. 参数、输出、退出码协议。
+3. 配置文件、策略文件、环境变量协议。
 
-## 2. 命令分组与别名
+## 2. 设计原则
 
-### 2.1 inspect 命令组（只读检查）
+1. 以 `PRD.md` 中的扁平化命令作为唯一正式命令。
+2. 一种行为只保留一个正式入口，不保留历史兼容命令。
+3. `--format` 只负责输出格式，`--output` 只负责导出路径，二者不混用。
+4. 所有结构化输出采用统一 JSON 包装。
+5. 退出码既支持脚本判断，也支持 CI 阻断。
 
-#### 2.1.1 端口检查
+## 3. 全局参数
 
-**完整命令**：`syskit inspect port <port>`
-**别名**：`syskit port <port>`
+| 参数 | 短名 | 类型 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `--format` | `-f` | string | `table` | 输出格式：`table/json/markdown/csv` |
+| `--json` | - | bool | `false` | 等价于 `--format json` |
+| `--output` | `-o` | string | 空 | 导出文件路径；为空时输出到 stdout |
+| `--config` | - | string | 自动查找 | 指定配置文件路径 |
+| `--policy` | - | string | 自动查找 | 指定策略文件路径 |
+| `--quiet` | `-q` | bool | `false` | 仅输出核心结果或错误 |
+| `--verbose` | `-v` | bool | `false` | 输出调试信息 |
+| `--no-color` | - | bool | `false` | 禁用颜色 |
+| `--timeout` | - | duration | 命令默认值 | 覆盖命令超时时间 |
+| `--dry-run` | - | bool | `true` | 写操作默认开启，仅 fix/service/startup/file 等命令生效 |
+| `--apply` | - | bool | `false` | 真实执行写操作 |
+| `--yes` | `-y` | bool | `false` | 跳过危险操作确认 |
+| `--fail-on` | - | string | `high` | CI 阻断阈值：`critical/high/medium/low/never` |
+| `--help` | `-h` | bool | - | 显示帮助 |
+| `--version` | - | bool | - | 输出版本信息 |
 
-查询指定端口的占用情况。
+参数约束：
 
-**参数**：
-- `<port>`：必填，端口号（1-65535）
+1. `--json` 优先级高于 `--format`。
+2. `--output` 仅表示文件导出路径，不代表输出格式。
+3. 写操作类命令在未显式传入 `--apply` 时必须保持 dry-run。
+4. dangerous 级写操作必须同时具备 `--apply --yes`。
 
-**示例**：
-```bash
-syskit port 8080
-syskit inspect port 8080 --output json
+## 4. 命令总览
+
+### 4.1 主命令树
+
+```text
+syskit
+├── doctor
+│   ├── all
+│   ├── port
+│   ├── cpu
+│   ├── mem
+│   ├── disk
+│   ├── network
+│   ├── disk-full
+│   └── slowness
+├── port
+│   ├── <port>
+│   ├── list
+│   ├── kill <port>
+│   ├── ping <target> <port>
+│   └── scan <target>
+├── proc
+│   ├── top
+│   ├── tree [pid]
+│   ├── info <pid>
+│   └── kill <pid>
+├── cpu
+│   ├── (overview)
+│   ├── burst
+│   └── watch
+├── mem
+│   ├── (overview)
+│   ├── top
+│   ├── leak <pid>
+│   └── watch
+├── disk
+│   ├── (overview)
+│   └── scan <path>
+├── file
+│   ├── dup <path>
+│   ├── dedup <path>
+│   ├── archive <path>
+│   └── empty <path>
+├── net
+│   ├── conn
+│   ├── listen
+│   └── speed
+├── dns
+│   ├── resolve <domain>
+│   └── bench <domain>
+├── ping <target>
+├── traceroute <target>
+├── service
+│   ├── list
+│   ├── check <name>
+│   ├── start <name>
+│   ├── stop <name>
+│   ├── restart <name>
+│   ├── enable <name>
+│   └── disable <name>
+├── startup
+│   ├── list
+│   ├── enable <id>
+│   └── disable <id>
+├── log
+│   ├── (overview)
+│   ├── search <keyword>
+│   └── watch
+├── fix
+│   ├── cleanup
+│   └── run <script>
+├── monitor
+│   └── all
+├── snapshot
+│   ├── create
+│   ├── list
+│   ├── show <id>
+│   ├── diff <idA> [idB]
+│   └── delete <id>
+├── report
+│   └── generate
+└── policy
+    ├── show
+    ├── init
+    └── validate <path>
 ```
 
-**输出字段**（JSON）：
+## 5. 版本分层
+
+| 版本 | 命令范围 |
+|---|---|
+| P0 | `doctor all/port/cpu/mem/disk`、`port/*` 核心子集、`proc/*`、`cpu`、`mem`、`disk`、`disk scan`、`fix cleanup`、`snapshot *`、`report generate`、`policy *` |
+| P1 | 网络全量、服务、启动项、日志、监控、`mem leak`、`cpu burst/watch`、`file *` 扩展、`fix run` |
+| P2 | 插件、容器/K8s 诊断、多主机场景 |
+
+说明：
+
+1. 文档列出的是全量命令面，不代表全部都进入 P0。
+2. P0/P1/P2 以本节为准，产品优先级与 PRD 一致。
+
+## 6. 命令规格
+
+### 6.1 doctor
+
+| 命令 | 版本 | 用途 | 关键参数 |
+|---|---|---|---|
+| `doctor all` | P0 | 一键体检，输出健康分、问题清单、覆盖率 | `--mode <quick/deep>` `--exclude <modules>` `--fail-on <severity>` |
+| `doctor port` | P0 | 端口冲突专项诊断 | `--port <port>` `--common-ports` |
+| `doctor cpu` | P0 | CPU 专项诊断 | `--threshold <percent>` `--duration <sec>` |
+| `doctor mem` | P0 | 内存专项诊断 | `--threshold <percent>` |
+| `doctor disk` | P0 | 磁盘专项诊断 | `--threshold <percent>` `--analyze-growth` |
+| `doctor network` | P1 | 网络链路专项诊断 | `--target <address>` |
+| `doctor disk-full` | P1 | 磁盘爆满场景诊断 | `--path <path>` `--top <n>` |
+| `doctor slowness` | P1 | 系统卡顿场景诊断 | `--mode <quick/deep>` |
+
+### 6.2 port
+
+| 命令 | 版本 | 用途 | 关键参数 | 安全等级 |
+|---|---|---|---|---|
+| `port <port[,port]|range>` | P0 | 查询端口占用和进程链路 | `--detail` | read-only |
+| `port list` | P0 | 查看监听端口列表 | `--by <pid/port>` `--protocol <tcp/udp>` `--listen <addr>` | read-only |
+| `port kill <port>` | P0 | 释放端口 | `--force` `--kill-tree` `--apply` `--yes` | cautious/dangerous |
+| `port ping <target> <port>` | P1 | TCP 端口可达性测试 | `--count` `--timeout` `--interval` | read-only |
+| `port scan <target>` | P1 | 扫描开放端口 | `--port <range>` `--mode <quick/full>` `--timeout` | read-only |
+
+### 6.3 proc
+
+| 命令 | 版本 | 用途 | 关键参数 | 安全等级 |
+|---|---|---|---|---|
+| `proc top` | P0 | 进程资源排行 | `--by <cpu/mem/io/fd>` `--top <n>` `--user` `--name` `--watch` | read-only |
+| `proc tree [pid]` | P0 | 查看进程树 | `--detail` `--full` | read-only |
+| `proc info <pid>` | P0 | 查看单进程详情 | `--env` | read-only |
+| `proc kill <pid>` | P0 | 结束指定进程 | `--force` `--tree` `--apply` `--yes` | cautious/dangerous |
+
+### 6.4 cpu
+
+| 命令 | 版本 | 用途 | 关键参数 |
+|---|---|---|---|
+| `cpu` | P0 | CPU 总览和高 CPU 进程概览 | `--detail` |
+| `cpu burst` | P1 | 捕捉突发高 CPU 进程 | `--interval` `--duration` `--threshold` |
+| `cpu watch` | P1 | 持续监控 CPU | `--top` `--interval` `--threshold-cpu` `--threshold-load` `--alert` |
+
+### 6.5 mem
+
+| 命令 | 版本 | 用途 | 关键参数 |
+|---|---|---|---|
+| `mem` | P0 | 内存总览和高内存进程概览 | `--detail` |
+| `mem top` | P0 | 进程内存排行 | `--top` `--by <rss/vms/swap>` `--user` `--name` |
+| `mem leak <pid>` | P1 | 进程内存泄漏趋势监控 | `--duration` `--interval` `--output` |
+| `mem watch` | P1 | 持续监控内存 | `--top` `--interval` `--threshold-mem` `--threshold-swap` `--alert` |
+
+### 6.6 disk / file
+
+| 命令 | 版本 | 用途 | 关键参数 | 安全等级 |
+|---|---|---|---|---|
+| `disk` | P0 | 分区、空间、增长趋势总览 | `--detail` | read-only |
+| `disk scan <path>` | P0 | 大文件/大目录扫描 | `--min-size` `--limit` `--depth` `--exclude` `--format` `--export-csv` | read-only |
+| `file dup <path>` | P1 | 重复文件检测 | `--min-size` `--exclude` `--hash <md5/sha256>` | read-only |
+| `fix cleanup` | P0 | 清理 temp/logs/cache | `--target <temp,logs,cache>` `--older-than <age>` `--apply` | cautious |
+| `file archive <path>` | P1 | 旧日志归档 | `--older-than` `--archive-path` `--compress <gzip/zip>` `--retention` `--apply` | cautious |
+| `file empty <path>` | P1 | 空目录清理 | `--apply` `--yes` | cautious |
+| `file dedup <path>` | P1 | 重复文件清理 | `--apply` `--yes` | dangerous |
+
+### 6.7 net / dns / ping / traceroute
+
+| 命令 | 版本 | 用途 | 关键参数 |
+|---|---|---|---|
+| `net conn` | P1 | 网络连接审计 | `--pid` `--state` `--proto` `--remote` |
+| `net listen` | P1 | 监听端口列表 | `--proto` `--addr` |
+| `dns resolve <domain>` | P1 | DNS 解析工具 | `--type` `--dns` `--timeout` |
+| `dns bench <domain>` | P1 | DNS 性能测试 | `--dns` `--count` |
+| `ping <target>` | P1 | ICMP Ping 测试 | `--count` `--interval` `--timeout` `--size` |
+| `traceroute <target>` | P1 | 路由跟踪 | `--max-hops` `--timeout` `--proto <icmp/tcp>` |
+| `net speed` | P1 | 带宽测速 | `--server` `--mode <full/download/upload>` |
+
+### 6.8 service / startup / log
+
+| 命令 | 版本 | 用途 | 关键参数 | 安全等级 |
+|---|---|---|---|---|
+| `service list` | P1 | 服务列表 | `--state` `--startup` `--name` | read-only |
+| `service check <name>` | P1 | 服务健康检查 | `--all` `--detail` | read-only |
+| `service start|stop|restart <name>` | P1 | 服务操作 | `--apply` `--yes` | cautious |
+| `service enable|disable <name>` | P1 | 服务开机自启管理 | `--apply` `--yes` | dangerous |
+| `startup list` | P1 | 启动项扫描 | `--only-risk` `--user` | read-only |
+| `startup enable|disable <id>` | P1 | 启动项管理 | `--apply` `--yes` | dangerous |
+| `log` | P1 | 日志快速体检 | `--since` `--level` `--top` `--detail` | read-only |
+| `log search <keyword>` | P1 | 日志搜索 | `--since` `--file` `--ignore-case` `--context` | read-only |
+| `log watch` | P1 | 日志增长监控 | `--file` `--threshold-size` `--threshold-error` `--interval` | read-only |
+
+### 6.9 fix / monitor / snapshot / report / policy
+
+| 命令 | 版本 | 用途 | 关键参数 |
+|---|---|---|---|
+| `fix run <script>` | P1 | 执行内置或自定义修复剧本 | `--apply` `--yes` `--dry-run` `--on-fail <stop/continue>` |
+| `monitor all` | P1 | 持续监控全系统 | `--interval` `--output` `--alert` `--policy` |
+| `snapshot create` | P0 | 创建快照 | `--name` `--description` `--module` |
+| `snapshot list` | P0 | 列出快照 | `--limit` |
+| `snapshot show <id>` | P0 | 查看快照详情 | `--module` |
+| `snapshot diff <idA> [idB]` | P0 | 快照对比 | `--only-change` `--module` `--output` |
+| `snapshot delete <id>` | P0 | 删除快照 | `--apply` `--yes` |
+| `report generate` | P0 | 生成 health/inspection/monitor 报告 | `--type <health/inspection/monitor>` `--format <markdown/json/csv>` `--output` `--time-range` |
+| `policy show` | P0 | 查看生效配置和策略 | `--type <config/policy/all>` `--default` |
+| `policy init` | P0 | 生成配置或策略模板 | `--type <config/policy/all>` `--output` |
+| `policy validate <path>` | P0 | 校验配置或策略文件 | `--type <config/policy>` |
+
+## 7. 输出协议
+
+### 7.1 统一 JSON 包装
+
 ```json
 {
-  "port": 8080,
-  "status": "listening",
-  "protocol": "tcp",
-  "pid": 12345,
-  "process_name": "node",
-  "command": "node server.js",
-  "user": "developer",
-  "start_time": "2026-03-11T09:30:00Z",
-  "parent_pid": 1234,
-  "parent_name": "bash",
-  "process_type": "dev_tool"
+  "code": 0,
+  "msg": "ok",
+  "data": {},
+  "error": null,
+  "metadata": {
+    "schema_version": "1.0",
+    "timestamp": "2026-03-12T10:30:00Z",
+    "host": "dev-machine",
+    "command": "syskit doctor all --format json",
+    "execution_ms": 1200,
+    "platform": "linux",
+    "trace_id": "abc123"
+  }
 }
 ```
 
----
+### 7.2 `doctor all` 数据结构
 
-**完整命令**：`syskit inspect ports`
-**别名**：`syskit ports`
-
-列出所有监听端口。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--filter` | string | - | 过滤条件：`listening`/`established`/`all` |
-| `--protocol` | string | `all` | 协议过滤：`tcp`/`udp`/`all` |
-| `--limit` | int | 50 | 最多显示条数 |
-
-**示例**：
-```bash
-syskit ports
-syskit ports --filter listening --protocol tcp
-```
-
----
-
-#### 2.1.2 进程检查
-
-**完整命令**：`syskit inspect proc top`
-**别名**：`syskit top`
-
-显示资源占用 Top 进程。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--by` | string | `cpu` | 排序维度：`cpu`/`mem`/`io` |
-| `--limit` | int | 10 | 显示进程数 |
-| `--threshold` | float | 0 | 最低占用阈值（百分比） |
-
-**示例**：
-```bash
-syskit top
-syskit top --by mem --limit 20
-syskit inspect proc top --by cpu --threshold 5.0
-```
-
----
-
-**完整命令**：`syskit inspect proc tree <pid>`
-
-显示进程树。
-
-**参数**：
-- `<pid>`：可选，根进程 PID，不指定则显示完整进程树
-
-**示例**：
-```bash
-syskit inspect proc tree 12345
-```
-
----
-
-#### 2.1.3 内存检查
-
-**完整命令**：`syskit inspect mem`
-**别名**：`syskit mem`
-
-显示内存使用情况。
-
-**输出字段**（JSON）：
 ```json
 {
-  "total_mb": 16384,
-  "used_mb": 12288,
-  "free_mb": 4096,
-  "available_mb": 5120,
-  "usage_percent": 75.0,
-  "swap_total_mb": 8192,
-  "swap_used_mb": 1024,
-  "swap_usage_percent": 12.5
-}
-```
-
----
-
-#### 2.1.4 磁盘检查
-
-**完整命令**：`syskit inspect disk`
-**别名**：`syskit disk`
-
-显示磁盘使用情况与风险。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--path` | string | - | 指定路径，不指定则显示所有分区 |
-| `--show-growth` | bool | `false` | 显示增长趋势（需历史数据） |
-
-**示例**：
-```bash
-syskit disk
-syskit disk --path /var/log --show-growth
-```
-
-**输出字段**（JSON）：
-```json
-{
-  "partitions": [
-    {
-      "mount_point": "/",
-      "device": "/dev/sda1",
-      "fstype": "ext4",
-      "total_gb": 500,
-      "used_gb": 450,
-      "free_gb": 50,
-      "usage_percent": 90.0,
-      "inodes_total": 32000000,
-      "inodes_used": 1500000,
-      "inodes_usage_percent": 4.7,
-      "growth_rate_gb_per_day": 2.5
-    }
-  ]
-}
-```
-
----
-
-#### 2.1.5 网络检查
-
-**完整命令**：`syskit inspect network`
-
-显示网络连接统计。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--group-by` | string | `process` | 分组方式：`process`/`state`/`remote` |
-| `--limit` | int | 20 | 最多显示条数 |
-
-**示例**：
-```bash
-syskit inspect network
-syskit inspect network --group-by state
-```
-
----
-
-#### 2.1.6 文件检查
-
-**完整命令**：`syskit inspect file large <path>`
-
-查找大文件。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `<path>` | string | `.` | 扫描路径 |
-| `--min-size` | string | `100M` | 最小文件大小（支持 K/M/G） |
-| `--limit` | int | 50 | 最多显示条数 |
-| `--depth` | int | 5 | 最大扫描深度 |
-
-**示例**：
-```bash
-syskit inspect file large /var/log --min-size 500M
-```
-
----
-
-**完整命令**：`syskit inspect file duplicate <path>`
-
-查找重复文件。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `<path>` | string | `.` | 扫描路径 |
-| `--min-size` | string | `1M` | 最小文件大小 |
-| `--algorithm` | string | `sha256` | 哈希算法：`md5`/`sha256` |
-
----
-
-**完整命令**：`syskit inspect file dir <path>`
-
-查找大目录（按目录累计体积排序）。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `<path>` | string | `.` | 扫描路径 |
-| `--min-size` | string | `1G` | 最小目录体积（支持 K/M/G） |
-| `--limit` | int | 20 | 最多显示条数 |
-| `--depth` | int | 8 | 最大扫描深度 |
-
----
-
-**完整命令**：`syskit inspect file types <path>`
-
-输出文件类型统计（数量、体积、占比）。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `<path>` | string | `.` | 扫描路径 |
-| `--group-by` | string | `ext` | 分组方式：`ext`/`mime` |
-| `--limit` | int | 20 | 最多显示条数 |
-
----
-
-### 2.2 doctor 命令组（场景化诊断）
-
-#### 2.2.1 一键体检
-
-**完整命令**：`syskit doctor all`
-
-执行全面系统诊断。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--mode` | string | `quick` | 扫描模式：`quick`/`deep` |
-| `--severity` | string | `all` | 过滤级别：`critical`/`high`/`medium`/`low`/`all` |
-| `--skip` | []string | - | 跳过模块：`port,cpu,mem,disk,network,io` |
-
-**示例**：
-```bash
-syskit doctor all
-syskit doctor all --mode deep --output json
-syskit doctor all --mode quick --json
-syskit doctor all --severity critical,high
-syskit doctor all --skip network,io
-```
-
-**输出结构**（JSON）：
-```json
-{
-  "timestamp": "2026-03-11T10:00:00Z",
-  "host": "dev-machine",
-  "mode": "quick",
-  "health_score": 75,
-  "health_level": "warning",
-  "coverage": 100.0,
+  "health_score": 82,
+  "health_level": "degraded",
+  "coverage": 91.7,
   "issues": [
     {
       "rule_id": "PORT-001",
@@ -304,690 +292,218 @@ syskit doctor all --skip network,io
       "summary": "端口 8080 被非预期进程占用",
       "evidence": {
         "port": 8080,
-        "pid": 12345,
-        "process": "node",
-        "command": "node old-server.js",
-        "start_time": "2026-03-10T15:30:00Z"
+        "pid": 1234,
+        "process_name": "java"
       },
-      "impact": "新服务无法启动，影响本地开发调试",
-      "suggestion": "终止旧进程或更改新服务端口",
-      "fix_command": "syskit fix port 8080 --apply",
+      "impact": "可能导致目标服务无法启动",
+      "suggestion": "先确认进程用途，再执行端口释放",
+      "fix_command": "syskit port kill 8080 --apply",
       "auto_fixable": true,
-      "confidence": 95,
+      "confidence": 100,
       "scope": "local"
     }
   ],
-  "skipped_modules": [],
-  "execution_time_ms": 3500
-}
-```
-
----
-
-#### 2.2.2 端口诊断
-
-**完整命令**：`syskit doctor port`
-
-诊断端口冲突问题。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--port` | int | - | 指定端口，不指定则检查常见端口 |
-| `--common-ports` | bool | `true` | 检查常见开发端口（3000/8080/8000/5000等） |
-
-**示例**：
-```bash
-syskit doctor port --port 8080
-syskit doctor port
-```
-
-**输出要求**：
-1. 必须包含完整链路：`port -> pid -> process_name -> command -> parent_process -> start_time`。
-2. 必须输出两种可执行处理路径：
-- 保守路径：建议改服务端口。
-- 直接路径：建议安全终止占用进程（可选自动修复）。
-
-**输出结构**（JSON 示例）：
-```json
-{
-  "rule_id": "PORT-001",
-  "severity": "critical",
-  "summary": "端口 8080 冲突",
-  "evidence": {
-    "port": 8080,
-    "pid": 12345,
-    "process_name": "node",
-    "command": "node old-server.js",
-    "parent_process": "bash(1234)",
-    "start_time": "2026-03-10T15:30:00Z",
-    "process_type": "dev_tool"
-  },
-  "suggestion_paths": [
+  "skipped": [
     {
-      "type": "conservative",
-      "action": "修改目标服务端口",
-      "command": "PORT=8081 npm run dev"
-    },
-    {
-      "type": "direct",
-      "action": "释放冲突端口",
-      "command": "syskit fix port 8080 --apply"
+      "module": "service",
+      "reason": "permission_denied",
+      "required_permission": "admin",
+      "impact": "未覆盖系统服务状态",
+      "suggestion": "以管理员权限重试"
     }
   ]
 }
 ```
 
----
+字段约束：
 
-#### 2.2.3 CPU 诊断
+1. JSON tag 统一 snake_case。
+2. 现有字段只增不减。
+3. `Issue` 字段以规则目录为准，CLI 规范和架构文档必须同步。
 
-**完整命令**：`syskit doctor cpu`
-
-诊断 CPU 高占用问题。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--threshold` | float | 80.0 | CPU 占用阈值（百分比） |
-| `--duration` | int | 10 | 采样时长（秒） |
-
-**示例**：
-```bash
-syskit doctor cpu
-syskit doctor cpu --threshold 90 --duration 30
-```
-
----
-
-#### 2.2.4 内存诊断
-
-**完整命令**：`syskit doctor mem`
-
-诊断内存不足问题。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--threshold` | float | 90.0 | 内存占用阈值（百分比） |
-
----
-
-#### 2.2.5 IO 诊断
-
-**完整命令**：`syskit doctor io`
-
-诊断磁盘 IO 异常。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--duration` | int | 10 | 采样时长（秒） |
-
----
-
-#### 2.2.6 磁盘诊断
-
-**完整命令**：`syskit doctor disk`
-
-诊断磁盘空间风险。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--threshold` | float | 85.0 | 磁盘占用阈值（百分比） |
-| `--analyze-growth` | bool | `true` | 分析增长趋势 |
-
----
-
-#### 2.2.7 网络诊断
-
-**完整命令**：`syskit doctor network`
-
-诊断网络连接异常。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--threshold` | int | 1000 | 连接数阈值 |
-
----
-
-### 2.3 fix 命令组（自动修复）
-
-**全局行为**：
-- 默认 `--dry-run` 模式，仅显示将执行的操作
-- 需要 `--apply` 才真正执行
-- `destructive` 级别操作需要 `--apply --yes`
-- 风险分级：`local`（当前用户影响）/`system`（系统级影响）/`destructive`（不可逆）
-- `system` 与 `destructive` 动作需要管理员或 root 权限
-
-#### 2.3.1 释放端口
-
-**完整命令**：`syskit fix port <port>`
-
-释放指定端口占用。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `<port>` | int | - | 必填，端口号 |
-| `--apply` | bool | `false` | 执行修复（默认 dry-run） |
-| `--force` | bool | `false` | 强制终止进程（即使是系统进程） |
-
-**示例**：
-```bash
-syskit fix port 8080                    # dry-run
-syskit fix port 8080 --apply            # 执行
-syskit fix port 8080 --apply --force    # 强制执行
-```
-
-**输出**（dry-run）：
-```
-[DRY-RUN] Will terminate process:
-  PID: 12345
-  Name: node
-  Command: node old-server.js
-  Scope: local
-  Risk: low (user-owned development process)
-
-To execute: syskit fix port 8080 --apply
-```
-
----
-
-#### 2.3.2 清理临时文件
-
-**完整命令**：`syskit fix cleanup`
-
-清理临时文件与日志。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--target` | []string | `temp` | 清理目标：`temp`/`logs`/`cache` |
-| `--age` | int | 7 | 保留天数 |
-| `--apply` | bool | `false` | 执行清理 |
-| `--yes` | bool | `false` | 跳过二次确认（destructive 操作需要） |
-
-**示例**：
-```bash
-syskit fix cleanup --target temp,logs
-syskit fix cleanup --target temp --age 3 --apply
-syskit fix cleanup --target logs --apply --yes
-```
-
----
-
-### 2.4 monitor 命令组（持续监控）
-
-#### 2.4.1 启动监控
-
-**完整命令**：`syskit monitor start`
-
-启动后台监控采样。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--interval` | int | 60 | 采样间隔（秒） |
-| `--metrics` | []string | `all` | 监控指标：`cpu,mem,disk,network,all` |
-| `--duration` | int | 0 | 监控时长（秒），0 表示持续 |
-
-**示例**：
-```bash
-syskit monitor start --interval 30 --metrics cpu,mem
-syskit monitor start --duration 3600
-```
-
----
-
-#### 2.4.2 停止监控
-
-**完整命令**：`syskit monitor stop`
-
-停止后台监控。
-
----
-
-#### 2.4.3 查看监控状态
-
-**完整命令**：`syskit monitor status`
-
-显示监控运行状态。
-
----
-
-### 2.5 snapshot 命令组（快照管理）
-
-#### 2.5.1 创建快照
-
-**完整命令**：`syskit snapshot create`
-
-创建系统状态快照。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--name` | string | 自动生成 | 快照名称 |
-| `--tag` | []string | - | 标签（如 `before-deploy`） |
-
-**示例**：
-```bash
-syskit snapshot create --name baseline --tag production
-```
-
----
-
-#### 2.5.2 列出快照
-
-**完整命令**：`syskit snapshot list`
-
-列出所有快照。
-
----
-
-#### 2.5.3 对比快照
-
-**完整命令**：`syskit snapshot diff <snapshot1> <snapshot2>`
-
-对比两个快照差异。
-
-**参数**：
-- `<snapshot1>`：快照名称或 ID
-- `<snapshot2>`：快照名称或 ID，不指定则与当前状态对比
-
-**示例**：
-```bash
-syskit snapshot diff baseline
-syskit snapshot diff baseline current
-```
-
----
-
-#### 2.5.4 删除快照
-
-**完整命令**：`syskit snapshot delete <snapshot>`
-
-删除指定快照。
-
----
-
-### 2.6 report 命令组（报告导出）
-
-#### 2.6.1 生成报告
-
-**完整命令**：`syskit report generate`
-
-生成诊断报告。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--source` | string | `latest` | 数据源：`latest`/快照名称 |
-| `--format` | string | `markdown` | 格式：`markdown`/`html`/`json` |
-| `--output` | string | `stdout` | 输出路径 |
-| `--include` | []string | `all` | 包含模块 |
-
-**示例**：
-```bash
-syskit report generate --format html --output report.html
-syskit report generate --source baseline --format markdown
-```
-
----
-
-### 2.7 policy 命令组（策略管理）
-
-#### 2.7.1 验证策略
-
-**完整命令**：`syskit policy validate`
-
-验证当前系统是否符合策略。
-
-**参数**：
-| 参数 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `--policy` | string | 默认路径 | 策略文件路径 |
-| `--fail-on` | string | `critical` | 失败级别：`critical`/`high`/`medium`/`low` |
-
-**示例**：
-```bash
-syskit policy validate
-syskit policy validate --policy team-policy.yaml --fail-on high
-```
-
----
-
-#### 2.7.2 显示策略
-
-**完整命令**：`syskit policy show`
-
-显示当前生效的策略配置。
-
----
-
-## 3. 退出码规范
-
-| 退出码 | 含义 | 使用场景 |
-|---|---|---|
-| `0` | 成功且无高风险问题 | 正常执行完成 |
-| `1` | 执行失败 | 命令错误、权限不足、系统异常 |
-| `2` | 成功但发现高风险问题 | CI/CD 质量门禁阻断 |
-
-**CI/CD 集成建议**：
-- 退出码 `2` 视为构建失败
-- 模块部分失败通过 `skipped_modules` 与 `coverage` 字段表达，不新增退出码
-
----
-
-## 4. 输出格式规范
-
-### 4.1 Table 格式（默认）
-
-人类友好的表格输出，带颜色标识：
-- `critical`：红色
-- `high`：橙色
-- `medium`：黄色
-- `low`：灰色
-
-### 4.2 JSON 格式
-
-机器友好的结构化输出，所有命令输出遵循统一结构：
+### 7.3 错误输出格式
 
 ```json
 {
-  "timestamp": "2026-03-11T10:00:00Z",
-  "host": "hostname",
-  "command": "syskit doctor all",
-  "exit_code": 0,
-  "data": { /* 命令特定数据 */ },
+  "code": 4,
+  "msg": "权限不足",
+  "data": null,
+  "error": {
+    "error_code": "ERR_PERMISSION_DENIED",
+    "error_message": "需要管理员权限执行此操作",
+    "suggestion": "请提升权限后重试"
+  },
   "metadata": {
-    "version": "1.0.0",
-    "platform": "linux",
-    "execution_time_ms": 1500
+    "schema_version": "1.0",
+    "timestamp": "2026-03-12T10:30:00Z",
+    "host": "dev-machine",
+    "command": "syskit port kill 8080 --apply",
+    "execution_ms": 15,
+    "platform": "windows",
+    "trace_id": "abc456"
   }
 }
 ```
 
-### 4.3 Markdown 格式
+## 8. 退出码
 
-适合报告归档与文档嵌入。
+| 退出码 | 含义 | 场景 |
+|---|---|---|
+| `0` | 成功且未命中阻断阈值 | 无风险或只有可接受问题 |
+| `1` | 成功但存在非阻断警告 | 存在 `medium/low` 等非阻断问题 |
+| `2` | 成功但命中 `--fail-on` 阈值 | 适用于 CI 阻断 |
+| `3` | 参数或配置非法 | 参数错误、配置格式错误、策略格式错误 |
+| `4` | 权限不足 | 全局或关键模块需要提升权限 |
+| `5` | 执行失败 | 平台不支持、外部命令失败、超时等 |
+| `6` | 部分执行成功 | 批量操作部分成功、部分失败 |
 
-### 4.4 终端与 JSON 字段映射
+错误码基线：
 
-| 终端输出 | JSON 字段 |
-|---|---|
-| `[HIGH] PORT-001 端口冲突` | `severity=high, rule_id=PORT-001, summary=端口冲突` |
-| `Evidence:` | `evidence` |
-| `Fix:` | `fix_command` |
+- `ERR_INVALID_ARGUMENT`
+- `ERR_PERMISSION_DENIED`
+- `ERR_PLATFORM_UNSUPPORTED`
+- `ERR_EXECUTION_FAILED`
+- `ERR_CONFIG_INVALID`
+- `ERR_POLICY_INVALID`
+- `ERR_TIMEOUT`
+- `ERR_NOT_FOUND`
+- `ERR_ALREADY_EXISTS`
+- `ERR_STORAGE_FULL`
+- `ERR_DEPENDENCY_MISSING`
 
----
+## 9. 配置文件协议
 
-## 5. 配置文件规范
+### 9.1 配置优先级
 
-### 5.1 配置文件路径优先级
+`命令行参数 > 用户配置 > 系统配置 > 默认值`
 
-1. 命令行 `--config` 指定
-2. 用户级：`~/.config/syskit/config.yaml` (Linux/macOS) 或 `%APPDATA%/syskit/config.yaml` (Windows)
-3. 系统级：`/etc/syskit/config.yaml` (Linux/macOS) 或 `%ProgramData%/syskit/config.yaml` (Windows)
-4. 内置默认值
+### 9.2 配置文件路径
 
-### 5.2 配置文件示例
+| 平台 | 系统级 | 用户级 |
+|---|---|---|
+| Linux | `/etc/syskit/config.yaml` | `~/.syskit/config.yaml` |
+| Windows | `%ProgramData%/syskit/config.yaml` | `%USERPROFILE%/.syskit/config.yaml` |
+| macOS | `/Library/Application Support/syskit/config.yaml` | `~/.syskit/config.yaml` |
+
+### 9.3 配置文件示例
 
 ```yaml
-# 输出配置
-output: table
-no_color: false
+output:
+  format: table
+  no_color: false
+  quiet: false
 
-# 数据保留
-retention_days: 14
-max_storage_mb: 500
+logging:
+  level: info
+  file: ~/.local/share/syskit/logs/syskit.log
+  max_size_mb: 100
+  max_backups: 3
 
-# 风险控制
-risk:
-  require_confirm_for:
-    - destructive
-  auto_approve:
-    - local
+storage:
+  data_dir: ~/.local/share/syskit/data
+  retention_days: 14
+  max_storage_mb: 500
 
-# 阈值配置
 thresholds:
   cpu_percent: 80.0
   mem_percent: 90.0
   disk_percent: 85.0
   connection_count: 1000
+  process_count: 500
+  file_size_gb: 10.0
 
-# 监控配置
+risk:
+  require_confirm_for:
+    - destructive
+  dry_run_default: true
+
+privacy:
+  redact: true
+  allow_no_redact: false
+  redact_fields: [user, cmdline, path]
+
+excludes:
+  paths: [.git, node_modules, vendor, build, /proc, /sys]
+  processes: [systemd, init]
+  ports: [22, 443]
+
 monitor:
-  default_interval: 60
-  default_metrics:
-    - cpu
-    - mem
-    - disk
+  interval_sec: 5
+  alert_threshold: 3
+  max_samples: 1000
 
-# 规则配置
-rules:
-  enabled:
-    - PORT-001
-    - DISK-001
-  disabled: []
-  custom_severity:
-    PORT-001: critical
+fix:
+  backup_before_fix: true
+  max_retry: 3
+  verify_after_fix: true
+
+report:
+  default_format: markdown
+  include_evidence: true
+  include_suggestions: true
 ```
 
----
+## 10. 策略文件协议
 
-## 6. 策略文件规范
+### 10.1 设计目的
 
-策略文件用于团队统一巡检标准。
+策略文件用于团队标准化校验，不取代配置文件。
 
-### 6.1 策略文件示例
+### 10.2 策略文件示例
 
 ```yaml
-name: "团队开发环境标准"
+name: team-dev-standard
 version: "1.0"
-author: "DevOps Team"
 
-# 必须通过的规则
 required_rules:
   - rule_id: PORT-001
     max_severity: high
   - rule_id: DISK-001
     max_severity: critical
 
-# 阈值覆盖
-thresholds:
+threshold_overrides:
   cpu_percent: 85.0
   disk_percent: 90.0
 
-# 禁止的进程
 forbidden_processes:
-  - name: "bitcoin-miner"
+  - name: bitcoin-miner
     severity: critical
-  - name: "torrent"
-    severity: high
 
-# 必须运行的服务
 required_services:
-  - name: "docker"
-    platform: ["linux", "darwin"]
-  - name: "Docker Desktop"
-    platform: ["windows"]
+  - name: docker
+    platform: [linux, darwin]
+  - name: Docker Desktop
+    platform: [windows]
+
+required_startup_items: []
+
+allow_public_listen:
+  - nginx
+  - caddy
 ```
 
----
+### 10.3 `policy` 命令约定
 
-## 7. 环境变量
+1. `policy show --type config` 输出配置。
+2. `policy show --type policy` 输出策略。
+3. `policy init --type config|policy|all` 生成模板。
+4. `policy validate <path> --type config|policy` 校验指定文件。
+5. 默认 `--type all` 仅对 `policy show` 生效。
 
-| 变量名 | 说明 | 示例 |
-|---|---|---|
-| `SYSKIT_CONFIG` | 配置文件路径 | `/path/to/config.yaml` |
-| `SYSKIT_POLICY` | 策略文件路径 | `/path/to/policy.yaml` |
-| `SYSKIT_OUTPUT` | 默认输出格式 | `json` |
-| `SYSKIT_NO_COLOR` | 禁用颜色 | `1` |
-| `SYSKIT_DATA_DIR` | 数据存储目录 | `/custom/path` |
+## 11. 环境变量
 
----
-
-## 8. 错误处理规范
-
-### 8.1 错误输出格式
-
-```json
-{
-  "error": {
-    "code": "ERR_PERMISSION_DENIED",
-    "message": "需要管理员权限执行此操作",
-    "details": "fix 命令需要提升权限",
-    "suggestion": "请使用 sudo 或管理员身份运行"
-  }
-}
-```
-
-### 8.2 常见错误码
-
-| 错误码 | 说明 |
+| 变量名 | 说明 |
 |---|---|
-| `ERR_PERMISSION_DENIED` | 权限不足 |
-| `ERR_INVALID_ARGUMENT` | 参数错误 |
-| `ERR_NOT_FOUND` | 资源不存在 |
-| `ERR_PLATFORM_UNSUPPORTED` | 平台不支持 |
-| `ERR_EXECUTION_FAILED` | 执行失败 |
-| `ERR_CONFIG_INVALID` | 配置文件无效 |
+| `SYSKIT_CONFIG` | 默认配置文件路径 |
+| `SYSKIT_POLICY` | 默认策略文件路径 |
+| `SYSKIT_OUTPUT` | 默认输出格式 |
+| `SYSKIT_NO_COLOR` | 是否禁用颜色输出 |
+| `SYSKIT_DATA_DIR` | 数据目录 |
+| `SYSKIT_LOG_LEVEL` | 日志级别覆盖 |
 
----
+## 12. 协议约束
 
-## 9. 平台差异说明
-
-### 9.1 命令可用性
-
-| 命令 | Windows | Linux | macOS |
-|---|---|---|---|
-| `inspect port` | ✓ | ✓ | ✓ |
-| `inspect proc` | ✓ | ✓ | ✓ |
-| `inspect mem` | ✓ | ✓ | ✓ |
-| `inspect disk` | ✓ | ✓ | ✓ |
-| `inspect network` | ✓ | ✓ | ✓ |
-| `inspect file` | ✓ | ✓ | ✓ |
-| `doctor all` | ✓ | ✓ | ✓ |
-| `fix port` | ✓ | ✓ | ✓ |
-| `fix cleanup` | ✓ | ✓ | ✓ |
-
-### 9.2 平台特定行为
-
-**Windows**：
-- 进程终止使用 `taskkill`
-- 临时目录：`%TEMP%`
-- 需要管理员权限的操作会触发 UAC
-
-**Linux/macOS**：
-- 进程终止使用 `kill`
-- 临时目录：`/tmp`
-- 需要 root 权限的操作需要 `sudo`
-
----
-
-## 10. 使用示例
-
-### 10.1 快速排障流程
-
-```bash
-# 1. 一键体检
-syskit doctor all
-
-# 2. 针对性诊断
-syskit doctor port --port 8080
-
-# 3. 查看详细信息
-syskit port 8080
-
-# 4. 修复问题（dry-run）
-syskit fix port 8080
-
-# 5. 确认后执行
-syskit fix port 8080 --apply
-```
-
-### 10.2 CI/CD 集成
-
-```bash
-# 构建前检查
-syskit doctor all --mode quick --json > health.json
-if [ $? -eq 2 ]; then
-  echo "环境异常，阻断构建"
-  exit 1
-fi
-
-# 策略验证
-syskit policy validate --policy team-policy.yaml --fail-on high
-```
-
-### 10.3 定期巡检
-
-```bash
-# 创建基线快照
-syskit snapshot create --name baseline --tag production
-
-# 每日巡检
-syskit doctor all --mode deep --json > daily-$(date +%Y%m%d).json
-
-# 对比变化
-syskit snapshot diff baseline
-```
-
----
-
-## 11. 版本兼容性
-
-- 配置文件向后兼容，新版本可读取旧版本配置
-- 命令别名永久保留，不会移除
-- JSON 输出字段只增不减，新字段标记为 `optional`
-- 退出码语义保持稳定
-
----
-
-## 附录：完整命令树
-
-```
-syskit
-├── inspect
-│   ├── port <port>
-│   ├── ports
-│   ├── proc
-│   │   ├── top
-│   │   └── tree [pid]
-│   ├── mem
-│   ├── disk
-│   ├── network
-│   └── file
-│       ├── large <path>
-│       ├── duplicate <path>
-│       ├── dir <path>
-│       └── types <path>
-├── doctor
-│   ├── all
-│   ├── port
-│   ├── cpu
-│   ├── mem
-│   ├── io
-│   ├── disk
-│   └── network
-├── fix
-│   ├── port <port>
-│   └── cleanup
-├── monitor
-│   ├── start
-│   ├── stop
-│   └── status
-├── snapshot
-│   ├── create
-│   ├── list
-│   ├── diff <snapshot1> [snapshot2]
-│   └── delete <snapshot>
-├── report
-│   └── generate
-└── policy
-    ├── validate
-    └── show
-```
+1. 新增命令时必须同步更新本文件的命令树和参数表。
+2. 新增输出字段时必须同步更新架构文档的模型定义。
+3. 新增或修改规则字段时必须同步更新规则目录。
+4. 不允许为同一行为同时维护多个正式命令入口。
