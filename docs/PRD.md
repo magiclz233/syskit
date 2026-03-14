@@ -66,18 +66,20 @@ syskit 是一款**面向开发者、中小团队运维工程师**的跨平台本
 完全兼容当前仓库迁移前的大文件扫描项目结构，可无缝迁移复用现有代码：
 ```
 syskit/
-├── main.go                  # 程序主入口，CLI框架初始化
+├── cmd/
+│   └── syskit/
+│       └── main.go          # 程序主入口，CLI框架启动
 ├── go.mod/go.sum            # Go模块依赖管理
-├── cmd/                     # CLI命令层（按模块分目录）
-│   ├── root.go              # 根命令，全局参数定义
-│   ├── inspect/             # inspect 子命令组
-│   ├── doctor/              # doctor 子命令组
-│   ├── fix/                 # fix 子命令组
-│   ├── monitor/             # monitor 子命令组
-│   ├── snapshot/            # snapshot 子命令组
-│   ├── report/              # report 子命令组
-│   └── policy/              # policy 子命令组
 ├── internal/
+│   ├── cli/                 # CLI命令层（按模块分目录）
+│   │   ├── root.go          # 根命令，全局参数定义
+│   │   ├── inspect/         # inspect 子命令组
+│   │   ├── doctor/          # doctor 子命令组
+│   │   ├── fix/             # fix 子命令组
+│   │   ├── monitor/         # monitor 子命令组
+│   │   ├── snapshot/        # snapshot 子命令组
+│   │   ├── report/          # report 子命令组
+│   │   └── policy/          # policy 子命令组
 │   ├── app/                 # 应用服务层（业务编排）
 │   │   ├── inspect_service.go  # inspect 业务编排
 │   │   ├── doctor_service.go   # doctor 业务编排
@@ -113,15 +115,15 @@ syskit/
 │   │   ├── audit_store.go     # 审计日志存储
 │   │   └── retention.go       # 数据保留策略
 │   ├── audit/               # 审计日志模块
-│   └── errs/                # 统一错误处理
+│   ├── errs/                # 统一错误处理
+│   └── version/             # 版本信息
 ├── platform/                # 平台适配层（跨平台能力）
 │   ├── common/              # 通用平台接口定义
 │   ├── windows/             # Windows平台专属实现
 │   ├── linux/               # Linux平台专属实现
 │   └── darwin/              # macOS平台专属实现
 ├── pkg/                     # 公共工具包
-│   ├── types/               # 通用类型定义
-│   └── version/             # 版本信息
+│   └── types/               # 通用类型定义
 ├── scripts/                 # 工程化脚本（100%复用原有代码）
 │   ├── build.sh/build.bat   # 多平台构建脚本
 │   ├── release.sh/release.bat # 发布脚本
@@ -137,12 +139,13 @@ syskit/
 ```
 
 **目录设计原则**：
-1. `cmd` 按模块分目录，避免单文件过大，每个子命令组独立维护
-2. `internal/app` 作为应用服务层，负责业务编排和模块调度
-3. `internal/domain` 作为领域层，包含规则引擎、评分器等核心逻辑
-4. `internal/collectors` 统一命名为复数形式，与 ARCHITECTURE.md 保持一致
-5. `platform` 独立出来，不放在 internal 下，便于跨平台能力复用
-6. `pkg` 只放可对外暴露的公共包，内部包统一放 internal
+1. `cmd/<binary>` 只承载可执行入口，便于后续扩展多二进制
+2. `internal/cli` 按模块分目录，避免单文件过大，每个子命令组独立维护
+3. `internal/app` 作为应用服务层，负责业务编排和模块调度
+4. `internal/domain` 作为领域层，包含规则引擎、评分器等核心逻辑
+5. `internal/collectors` 统一命名为复数形式，与 ARCHITECTURE.md 保持一致
+6. `platform` 独立出来，不放在 internal 下，便于跨平台能力复用
+7. `pkg` 只放可对外暴露的公共包，内部包统一放 internal
 
 ---
 

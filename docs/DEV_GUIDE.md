@@ -2,7 +2,8 @@
 
 ## 代码入口
 
-- `main.go`: CLI 参数解析、结果输出
+- `cmd/syskit/main.go`: 二进制入口，负责启动 CLI 和返回退出码
+- `internal/cli/`: Cobra 命令树、全局参数和路由
 - `internal/scanner/scanner.go`: 唯一的准确扫描实现
 - `internal/scanner/types.go`: 扫描参数和结果结构
 - `pkg/utils/size.go`: 大小格式化和数字格式化

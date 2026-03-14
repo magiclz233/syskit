@@ -14,7 +14,7 @@ go test ./...
 - `docs/`
 - `scripts/README.md`
 - `syskit --help`
-- [main.go](/e:/code/golang/find-large-files/main.go) 中的版本号
+- [version.go](/e:/code/golang/find-large-files/internal/version/version.go) 中的版本号
 
 ## 支持发布的平台
 

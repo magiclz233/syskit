@@ -12,20 +12,20 @@
 ### 直接运行
 
 ```bash
-go run . D:\
+go run ./cmd/syskit D:\
 ```
 
 ### 编译后运行
 
 ```bash
-go build -o syskit
+go build -o syskit ./cmd/syskit
 ./syskit /home/user
 ```
 
 Windows:
 
 ```powershell
-go build -o syskit.exe
+go build -o syskit.exe ./cmd/syskit
 .\syskit.exe D:\
 ```
 

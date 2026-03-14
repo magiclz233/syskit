@@ -36,7 +36,8 @@ CLI(Command) -> Application(Service) -> Domain(Rule/Score/Policy) -> Infrastruct
 
 | 分层 | 责任 | 不负责 |
 |---|---|---|
-| `cmd` | 参数解析、命令路由、帮助输出 | 规则判断、平台命令细节 |
+| `cmd/<binary>` | 二进制入口、版本注入、退出码桥接 | 参数解析、规则判断 |
+| `internal/cli` | 参数解析、命令路由、帮助输出 | 规则判断、平台命令细节 |
 | `app` | 用例编排、超时控制、事务边界、权限校验 | 采集实现、渲染实现 |
 | `domain` | 模型、规则、评分、策略校验、风险分级 | OS 命令调用 |
 | `collectors/executors` | 采集系统数据、执行修复动作 | CLI 参数解析 |
@@ -49,24 +50,28 @@ CLI(Command) -> Application(Service) -> Domain(Rule/Score/Policy) -> Infrastruct
 ```text
 syskit/
 ├── cmd/
-│   ├── root.go
-│   ├── doctor/
-│   ├── port/
-│   ├── proc/
-│   ├── cpu/
-│   ├── mem/
-│   ├── disk/
-│   ├── file/
-│   ├── net/
-│   ├── service/
-│   ├── startup/
-│   ├── log/
-│   ├── fix/
-│   ├── monitor/
-│   ├── snapshot/
-│   ├── report/
-│   └── policy/
+│   └── syskit/
+│       └── main.go
 ├── internal/
+│   ├── cli/
+│   │   ├── root.go
+│   │   ├── global.go
+│   │   ├── doctor/
+│   │   ├── port/
+│   │   ├── proc/
+│   │   ├── cpu/
+│   │   ├── mem/
+│   │   ├── disk/
+│   │   ├── file/
+│   │   ├── net/
+│   │   ├── service/
+│   │   ├── startup/
+│   │   ├── log/
+│   │   ├── fix/
+│   │   ├── monitor/
+│   │   ├── snapshot/
+│   │   ├── report/
+│   │   └── policy/
 │   ├── app/
 │   ├── domain/
 │   │   ├── model/
@@ -79,7 +84,8 @@ syskit/
 │   ├── config/
 │   ├── storage/
 │   ├── audit/
-│   └── errs/
+│   ├── errs/
+│   └── version/
 ├── platform/
 │   ├── common/
 │   ├── windows/
@@ -90,11 +96,12 @@ syskit/
 
 目录规则：
 
-1. `cmd` 只做参数和路由，不落业务逻辑。
-2. `domain` 不依赖 `cmd` 和 `platform`。
-3. `platform` 只负责差异适配，不得生成规则结论。
-4. `output` 只能读取标准结果对象。
-5. `storage` 不得反向依赖 `cmd`。
+1. `cmd/<binary>` 只保留入口装配，不承载命令定义。
+2. `internal/cli` 只做参数和路由，不落业务逻辑。
+3. `domain` 不依赖 `internal/cli` 和 `platform`。
+4. `platform` 只负责差异适配，不得生成规则结论。
+5. `output` 只能读取标准结果对象。
+6. `storage` 不得反向依赖 `internal/cli`。
 
 ## 5. 核心领域模型
 

@@ -21,13 +21,13 @@
 ### 直接编译
 
 ```bash
-go build -o syskit
+go build -o syskit ./cmd/syskit
 ```
 
 Windows:
 
 ```powershell
-go build -o syskit.exe
+go build -o syskit.exe ./cmd/syskit
 ```
 
 ### 使用构建脚本
@@ -155,24 +155,28 @@ scripts\find-largest-local.ps1 -Path D:\ -Top 30
 scripts\find-largest-local.ps1 -Path D:\ -Exclude "node_modules,.git" -ExportCsvPath D:\scan
 ```
 
-它会优先调用已编译的程序；如果找不到，就回退到 `go run .`。
+它会优先调用已编译的程序；如果找不到，就回退到 `go run ./cmd/syskit`。
 
 ## 项目结构
 
 ```text
 syskit/
-├── main.go
-├── README.md
+├── cmd/
+│   └── syskit/
+│       └── main.go
+├── internal/
+│   ├── cli/
+│   ├── errs/
+│   ├── scanner/
+│   └── version/
+├── pkg/
+│   └── utils/
+│       └── size.go
 ├── docs/
 │   ├── QUICKSTART.md
 │   ├── DESIGN.md
 │   ├── DEV_GUIDE.md
 │   └── RELEASE_GUIDE.md
-├── internal/scanner/
-│   ├── scanner.go
-│   └── types.go
-├── pkg/utils/
-│   └── size.go
 └── scripts/
     ├── build.bat
     ├── build.sh
