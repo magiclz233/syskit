@@ -1,5 +1,5 @@
 #!/bin/bash
-# Release script for Find Large Files
+# Release script for syskit
 # Usage: ./scripts/release.sh <version>
 # Example: ./scripts/release.sh 0.3.0
 
@@ -24,7 +24,7 @@ VERSION=$1
 TAG="v${VERSION}"
 CURRENT_BRANCH=$(git branch --show-current)
 
-echo -e "${BLUE}=== Find Large Files Release Script ===${NC}"
+echo -e "${BLUE}=== syskit Release Script ===${NC}"
 echo -e "${YELLOW}Version: ${VERSION}${NC}"
 echo -e "${YELLOW}Branch: ${CURRENT_BRANCH}${NC}"
 echo ""

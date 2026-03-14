@@ -1,5 +1,5 @@
 @echo off
-REM Release script for Find Large Files
+REM Release script for syskit
 REM Usage: release.bat <version>
 REM Example: release.bat 0.3.0
 
@@ -16,7 +16,7 @@ set VERSION=%1
 set TAG=v%VERSION%
 for /f %%i in ('git branch --show-current') do set CURRENT_BRANCH=%%i
 
-echo === Find Large Files Release Script ===
+echo === syskit Release Script ===
 echo Version: %VERSION%
 echo Branch: %CURRENT_BRANCH%
 echo.
