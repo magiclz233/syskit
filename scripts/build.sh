@@ -1,5 +1,5 @@
 #!/bin/bash
-# Find Large Files - 跨平台编译脚本
+# syskit - 跨平台编译脚本
 # 用法: ./build.sh [target]
 #
 # 参数:
@@ -33,7 +33,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # 项目信息
-APP_NAME="find-large-files"
+APP_NAME="syskit"
 BUILD_DIR="build"
 
 # 创建 build 目录
@@ -193,7 +193,7 @@ build_current() {
 
 # 显示帮助
 show_help() {
-    echo "Find Large Files - 跨平台编译脚本"
+    echo "syskit - 跨平台编译脚本"
     echo ""
     echo "用法: ./build.sh [target]"
     echo ""
@@ -221,8 +221,8 @@ show_help() {
     echo "  ./build.sh darwin           # 编译所有 macOS 版本"
     echo ""
     echo "输出文件命名:"
-    echo "  build/find-large-files-<platform>[.exe]"
-    echo "  示例: build/find-large-files-linux-x64"
+    echo "  build/syskit-<platform>[.exe]"
+    echo "  示例: build/syskit-linux-x64"
 }
 
 # 主逻辑

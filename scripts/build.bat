@@ -1,5 +1,5 @@
 @echo off
-REM Find Large Files - Cross-platform Build Script (Windows)
+REM syskit - Cross-platform Build Script (Windows)
 REM Usage: build.bat [target]
 REM
 REM Supported targets:
@@ -8,7 +8,7 @@ REM   linux-amd64     linux-386     linux-arm64     linux-arm
 REM   darwin-amd64    darwin-arm64
 REM
 REM Output naming:
-REM   build\find-large-files-<platform>[.exe]
+REM   build\syskit-<platform>[.exe]
 
 setlocal enabledelayedexpansion
 
@@ -18,7 +18,7 @@ set PROJECT_ROOT=%SCRIPT_DIR%..
 cd /d "%PROJECT_ROOT%"
 
 REM Project info
-set APP_NAME=find-large-files
+set APP_NAME=syskit
 set BUILD_DIR=build
 
 REM Create build directory
@@ -188,7 +188,7 @@ if /I "%~1-%~2"=="darwin-arm64" set TARGET_LABEL=macos-arm64
 goto :eof
 
 :show_help
-echo Find Large Files - Cross-platform Build Script
+echo syskit - Cross-platform Build Script
 echo.
 echo Usage: build.bat [target]
 echo.
@@ -216,9 +216,9 @@ echo   build.bat windows-amd64    # Build Windows 64-bit only
 echo   build.bat darwin           # Build all macOS versions
 echo.
 echo Output files:
-echo   build\find-large-files-windows-x64.exe
-echo   build\find-large-files-linux-x64
-echo   build\find-large-files-macos-arm64
+echo   build\syskit-windows-x64.exe
+echo   build\syskit-linux-x64
+echo   build\syskit-macos-arm64
 goto end
 
 :end
