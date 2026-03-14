@@ -42,10 +42,10 @@ if ! git diff-index --quiet HEAD --; then
     exit 1
 fi
 
-# Update version in main.go
-echo -e "${BLUE}Updating version in main.go...${NC}"
-sed -i "s/version = \".*\"/version = \"${VERSION}\"/" main.go
-git add main.go
+# Update version in internal/version/version.go
+echo -e "${BLUE}Updating version in internal/version/version.go...${NC}"
+sed -i "s/Value = \".*\"/Value = \"${VERSION}\"/" internal/version/version.go
+git add internal/version/version.go
 git commit -m "Bump version to ${VERSION}"
 
 # Build all platforms

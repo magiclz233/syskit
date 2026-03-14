@@ -36,10 +36,10 @@ if %ERRORLEVEL% NEQ 0 (
     exit /b 1
 )
 
-REM Update version in main.go
-echo Updating version in main.go...
-powershell -Command "(Get-Content main.go) -replace 'version = \".*\"', 'version = \"%VERSION%\"' | Set-Content main.go"
-git add main.go
+REM Update version in internal/version/version.go
+echo Updating version in internal/version/version.go...
+powershell -Command "(Get-Content internal/version/version.go) -replace 'Value = \".*\"', 'Value = \"%VERSION%\"' | Set-Content internal/version/version.go"
+git add internal/version/version.go
 git commit -m "Bump version to %VERSION%"
 
 REM Build all platforms
