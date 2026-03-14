@@ -164,7 +164,7 @@ set output=%BUILD_DIR%\%APP_NAME%-%TARGET_LABEL%%ext%
 echo Building %os%/%arch%...
 set GOOS=%os%
 set GOARCH=%arch%
-go build -ldflags="-s -w" -o %output%
+go build -ldflags="-s -w" -o %output% .\cmd\syskit
 
 if %ERRORLEVEL% EQU 0 (
     echo [OK] Build completed: %output%

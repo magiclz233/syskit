@@ -68,7 +68,7 @@ build() {
     local output="${BUILD_DIR}/${APP_NAME}-${label}${ext}"
 
     echo -e "${BLUE}正在编译 ${os}/${arch}...${NC}"
-    GOOS=$os GOARCH=$arch go build -ldflags="-s -w" -o "$output"
+    GOOS=$os GOARCH=$arch go build -ldflags="-s -w" -o "$output" ./cmd/syskit
 
     if [ $? -eq 0 ]; then
         local size=$(du -h "$output" | cut -f1)
