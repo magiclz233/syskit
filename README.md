@@ -1,11 +1,11 @@
-# Find Large Files
+# syskit
 
-一个跨平台的目录分析工具，用来准确找出目标目录树中：
+一个跨平台本地系统运维 CLI 项目。当前仓库仍以内置的磁盘扫描能力为主，用来准确找出目标目录树中：
 
 - 最大的子目录
 - 最大的文件
 
-项目已经收敛为单一的全量准确扫描，不再提供近似模式或分层猜测模式。
+当前代码实现仍以全量准确扫描为主，后续将按 `docs/SYSKIT_*` 文档逐步扩展为完整的 `syskit` P0 能力。
 
 ## 特性
 
@@ -21,13 +21,13 @@
 ### 直接编译
 
 ```bash
-go build -o find-large-files
+go build -o syskit
 ```
 
 Windows:
 
 ```powershell
-go build -o find-large-files.exe
+go build -o syskit.exe
 ```
 
 ### 使用构建脚本
@@ -64,14 +64,14 @@ scripts\build.bat darwin-arm64
 产物统一输出到 `build/`，文件名格式为：
 
 ```text
-find-large-files-<platform>[.exe]
+syskit-<platform>[.exe]
 ```
 
 示例：
 
-- `find-large-files-windows-x64.exe`
-- `find-large-files-linux-arm64`
-- `find-large-files-macos-arm64`
+- `syskit-windows-x64.exe`
+- `syskit-linux-arm64`
+- `syskit-macos-arm64`
 
 ## 发布
 
@@ -106,26 +106,26 @@ gh release create v0.4.0 build/* --title "v0.4.0" --notes "Release 0.4.0"
 ### 基本命令
 
 ```bash
-find-large-files D:\
-find-large-files .
-find-large-files --top 50 D:\
-find-large-files --exclude node_modules,.git,vendor D:\
+syskit D:\
+syskit .
+syskit --top 50 D:\
+syskit --exclude node_modules,.git,vendor D:\
 ```
 
 ### 输出控制
 
 ```bash
 # 只看文件
-find-large-files --include-dirs=false D:\
+syskit --include-dirs=false D:\
 
 # 只看子目录
-find-large-files --include-files=false D:\
+syskit --include-files=false D:\
 
 # JSON 输出
-find-large-files --format json D:\
+syskit --format json D:\
 
 # CSV 导出
-find-large-files --export-csv report D:\
+syskit --export-csv report D:\
 ```
 
 ## 输出语义
@@ -160,7 +160,7 @@ scripts\find-largest-local.ps1 -Path D:\ -Exclude "node_modules,.git" -ExportCsv
 ## 项目结构
 
 ```text
-find-large-files/
+syskit/
 ├── main.go
 ├── README.md
 ├── docs/

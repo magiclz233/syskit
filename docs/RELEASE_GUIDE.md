@@ -13,7 +13,7 @@ go test ./...
 - `README.md`
 - `docs/`
 - `scripts/README.md`
-- `find-large-files --help`
+- `syskit --help`
 - [main.go](/e:/code/golang/find-large-files/main.go) 中的版本号
 
 ## 支持发布的平台
@@ -33,7 +33,7 @@ go test ./...
 产物命名规则：
 
 ```text
-find-large-files-<platform>[.exe]
+syskit-<platform>[.exe]
 ```
 
 ## 本地构建全部产物

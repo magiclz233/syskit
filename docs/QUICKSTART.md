@@ -18,44 +18,44 @@ go run . D:\
 ### 编译后运行
 
 ```bash
-go build -o find-large-files
-./find-large-files /home/user
+go build -o syskit
+./syskit /home/user
 ```
 
 Windows:
 
 ```powershell
-go build -o find-large-files.exe
-.\find-large-files.exe D:\
+go build -o syskit.exe
+.\syskit.exe D:\
 ```
 
 ## 常用示例
 
 ```bash
 # 返回前 20 个子目录和文件
-find-large-files D:\
+syskit D:\
 
 # 返回前 50 个结果
-find-large-files --top 50 D:\
+syskit --top 50 D:\
 
 # 排除依赖目录
-find-large-files --exclude node_modules,.git,vendor,target D:\
+syskit --exclude node_modules,.git,vendor,target D:\
 
 # 只看文件
-find-large-files --include-dirs=false D:\
+syskit --include-dirs=false D:\
 
 # 只看子目录
-find-large-files --include-files=false D:\
+syskit --include-files=false D:\
 ```
 
 ## 导出
 
 ```bash
 # JSON
-find-large-files --format json D:\ > result.json
+syskit --format json D:\ > result.json
 
 # CSV
-find-large-files --export-csv report D:\
+syskit --export-csv report D:\
 ```
 
 会生成：

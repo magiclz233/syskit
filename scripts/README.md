@@ -38,16 +38,16 @@
 构建结果统一输出到 `build/` 目录，文件名格式如下：
 
 ```text
-find-large-files-<platform>[.exe]
+syskit-<platform>[.exe]
 ```
 
 `<platform>` 采用更易懂命名，例如 `windows-x64`、`linux-x86`、`macos-arm64`。
 
 示例：
 
-- `build/find-large-files-windows-x64.exe`
-- `build/find-large-files-linux-x64`
-- `build/find-large-files-macos-arm64`
+- `build/syskit-windows-x64.exe`
+- `build/syskit-linux-x64`
+- `build/syskit-macos-arm64`
 
 ### 常用命令
 

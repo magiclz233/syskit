@@ -7,12 +7,12 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
-	"find-large-files/internal/scanner"
-	"find-large-files/pkg/utils"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
+	"syskit/internal/scanner"
+	"syskit/pkg/utils"
 )
 
 // version 是程序当前版本号。
@@ -70,8 +70,8 @@ func main() {
 	flag.Parse()
 
 	if showVersion {
-		fmt.Printf("find-large-files version %s\n", version)
-		fmt.Println("跨平台文件系统分析工具")
+		fmt.Printf("syskit version %s\n", version)
+		fmt.Println("跨平台本地系统运维 CLI 工具")
 		os.Exit(0)
 	}
 
@@ -157,7 +157,7 @@ func main() {
 // printUsage 输出帮助文本。
 // 这里不依赖 flag 默认生成的帮助，是因为我们希望把“输出语义”和“常用示例”一起写清楚。
 func printUsage() {
-	fmt.Println("用法: find-large-files [选项] [路径]")
+	fmt.Println("用法: syskit [选项] [路径]")
 	fmt.Println()
 	fmt.Println("参数:")
 	fmt.Println("  [路径]              要扫描的目录路径（默认: 当前目录）")
@@ -178,16 +178,16 @@ func printUsage() {
 	fmt.Println()
 	fmt.Println("示例:")
 	fmt.Println("  # 扫描整个 D 盘")
-	fmt.Println("  find-large-files D:\\")
+	fmt.Println("  syskit D:\\")
 	fmt.Println()
 	fmt.Println("  # 排除常见依赖目录")
-	fmt.Println("  find-large-files --exclude node_modules,.git,vendor D:\\")
+	fmt.Println("  syskit --exclude node_modules,.git,vendor D:\\")
 	fmt.Println()
 	fmt.Println("  # JSON 输出")
-	fmt.Println("  find-large-files --format json D:\\")
+	fmt.Println("  syskit --format json D:\\")
 	fmt.Println()
 	fmt.Println("  # CSV 导出")
-	fmt.Println("  find-large-files --export-csv D:\\result D:\\")
+	fmt.Println("  syskit --export-csv D:\\result D:\\")
 }
 
 // outputTable 负责人类可读的终端表格输出。

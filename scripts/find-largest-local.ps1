@@ -59,10 +59,10 @@ function Resolve-Runner {
   param([string]$RepoRoot)
 
   $candidates = @(
-    (Join-Path $RepoRoot 'find-large-files.exe'),
-    (Join-Path $RepoRoot 'find-large-files'),
-    (Join-Path $RepoRoot 'build\find-large-files-windows-x64.exe'),
-    (Join-Path $RepoRoot 'build\find-large-files-windows-amd64.exe')
+    (Join-Path $RepoRoot 'syskit.exe'),
+    (Join-Path $RepoRoot 'syskit'),
+    (Join-Path $RepoRoot 'build\syskit-windows-x64.exe'),
+    (Join-Path $RepoRoot 'build\syskit-windows-amd64.exe')
   )
 
   foreach ($candidate in $candidates) {
