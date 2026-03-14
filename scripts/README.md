@@ -90,7 +90,7 @@ scripts\build.bat darwin-arm64
 
 1. 检查工作区是否干净
 2. 检查目标 tag 是否已存在
-3. 更新 [main.go](/e:/code/golang/find-large-files/main.go) 中的版本号
+3. 更新 [version.go](/e:/code/golang/find-large-files/internal/version/version.go) 中的版本号
 4. 提交版本更新
 5. 构建全部平台产物
 6. 创建 Git tag
@@ -167,5 +167,5 @@ scripts\find-largest-local.ps1 -Path D:\ -Exclude "node_modules,.git" -ExportCsv
 行为：
 
 - 优先调用已编译好的程序
-- 如果没找到可执行文件，则回退到 `go run .`
+- 如果没找到可执行文件，则回退到 `go run ./cmd/syskit`
 - 与主程序保持相同语义，只做全量准确扫描

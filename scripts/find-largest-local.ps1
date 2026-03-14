@@ -1,7 +1,7 @@
 <#
 准确扫描当前目录树中最大的子目录和最大的文件。
 
-优先调用仓库根目录下已编译好的可执行文件；如果不存在，则回退到 `go run .`。
+优先调用仓库根目录下已编译好的可执行文件；如果不存在，则回退到 `go run ./cmd/syskit`。
 脚本只保留与当前项目一致的能力，不再维护旧的扫描模式分支。
 #>
 
@@ -78,7 +78,7 @@ function Resolve-Runner {
   if ($null -ne $go) {
     return @{
       Command = $go.Source
-      Prefix  = @('run', '.')
+        Prefix  = @('run', './cmd/syskit')
     }
   }
 
