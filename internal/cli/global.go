@@ -1,3 +1,4 @@
+// Package cli 中的 globalOptions 负责管理所有命令共享的 persistent flags。
 package cli
 
 import (
@@ -14,6 +15,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// globalOptions 保存根命令注册的全局参数。
+// 这些字段会在 Cobra 解析后、具体命令执行前被统一归一化。
 type globalOptions struct {
 	format     string
 	json       bool
@@ -30,6 +33,8 @@ type globalOptions struct {
 	failOn     string
 }
 
+// newGlobalOptions 返回全局参数默认值。
+// 这里的默认值是命令行层的起点，后续还可能被环境变量和配置文件覆盖。
 func newGlobalOptions() *globalOptions {
 	return &globalOptions{
 		format:  "table",
@@ -39,6 +44,7 @@ func newGlobalOptions() *globalOptions {
 	}
 }
 
+// Bind 把全局参数注册到 root command 的 persistent flags 上。
 func (o *globalOptions) Bind(rootCmd *cobra.Command) {
 	flags := rootCmd.PersistentFlags()
 	flags.StringVarP(&o.format, "format", "f", "table", "输出格式: table, json, markdown, csv")
@@ -56,6 +62,8 @@ func (o *globalOptions) Bind(rootCmd *cobra.Command) {
 	flags.StringVar(&o.failOn, "fail-on", "high", "CI 阻断阈值: critical/high/medium/low/never")
 }
 
+// NormalizeAndValidate 对最终参数做归一化和合法性校验。
+// 执行顺序必须晚于环境变量和配置文件映射，否则得到的不是最终生效值。
 func (o *globalOptions) NormalizeAndValidate() error {
 	if o.json {
 		o.format = "json"
@@ -82,6 +90,8 @@ func (o *globalOptions) NormalizeAndValidate() error {
 	return nil
 }
 
+// ApplyBootstrapEnv 先读取那些会影响“配置加载行为”和“错误输出行为”的环境变量。
+// 之所以要在真正 Load 配置之前执行，是为了让配置加载失败时也能按用户期望的格式输出错误。
 func (o *globalOptions) ApplyBootstrapEnv(cmd *cobra.Command) {
 	if !flagChanged(cmd, "config") {
 		if value := strings.TrimSpace(os.Getenv("SYSKIT_CONFIG")); value != "" {
@@ -108,6 +118,8 @@ func (o *globalOptions) ApplyBootstrapEnv(cmd *cobra.Command) {
 	}
 }
 
+// ApplyConfig 把已加载的配置映射到全局参数。
+// 只有当用户没有在命令行显式传入对应 flag 时，配置值才会生效。
 func (o *globalOptions) ApplyConfig(cmd *cobra.Command, cfg *config.Config) {
 	if cfg == nil {
 		return
@@ -130,6 +142,8 @@ func (o *globalOptions) ApplyConfig(cmd *cobra.Command, cfg *config.Config) {
 	}
 }
 
+// errorFormat 返回“错误场景下”应使用的输出格式。
+// 和正常格式不同，这里必须在格式非法时退回 table，保证错误至少能被打印出来。
 func (o *globalOptions) errorFormat() string {
 	if o.json {
 		return "json"
@@ -144,6 +158,7 @@ func (o *globalOptions) errorFormat() string {
 	}
 }
 
+// configureOutputWriter 在非 CSV 模式下为结构化输出打开文件句柄。
 func (o *globalOptions) configureOutputWriter(out *io.Writer) (func(), error) {
 	if o.outputPath == "" || o.format == "csv" {
 		return nil, nil
@@ -164,6 +179,7 @@ func (o *globalOptions) configureOutputWriter(out *io.Writer) (func(), error) {
 	}, nil
 }
 
+// csvPrefix 为 CSV 导出计算文件名前缀。
 func (o *globalOptions) csvPrefix(fallback string) string {
 	if fallback != "" {
 		return fallback
@@ -181,6 +197,7 @@ func (o *globalOptions) csvPrefix(fallback string) string {
 	return strings.TrimSuffix(o.outputPath, ext)
 }
 
+// flagChanged 判断某个 flag 是否被用户显式设置。
 func flagChanged(cmd *cobra.Command, name string) bool {
 	if cmd == nil {
 		return false
@@ -193,6 +210,7 @@ func flagChanged(cmd *cobra.Command, name string) bool {
 	return flag != nil && flag.Changed
 }
 
+// parseBoolEnv 解析布尔型环境变量，并用第二个返回值区分“false”和“解析失败”。
 func parseBoolEnv(name string) (bool, bool) {
 	value := strings.TrimSpace(os.Getenv(name))
 	if value == "" {

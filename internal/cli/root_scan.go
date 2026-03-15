@@ -14,6 +14,8 @@ import (
 )
 
 func runLegacyScan(cmd *cobra.Command, args []string, version string, opts *rootFlags, global *globalOptions) error {
+	// 根命令当前仍保留“兼容扫描模式”。
+	// 这段逻辑后续会逐步弱化，但在 P0 期间仍用于兼容旧用法。
 	consoleOut := cmd.OutOrStdout()
 	resultOut := consoleOut
 
@@ -54,6 +56,8 @@ func runLegacyScan(cmd *cobra.Command, args []string, version string, opts *root
 	})
 }
 
+// resolveScanPath 负责兼容旧交互：如果根命令没有给路径，就提示用户输入。
+// 正式的 `disk scan` 不会走这条逻辑，而是要求显式传入路径。
 func resolveScanPath(cmd *cobra.Command, args []string) (string, error) {
 	if len(args) > 0 {
 		return args[0], nil

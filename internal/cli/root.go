@@ -1,3 +1,4 @@
+// Package cli 负责构建 syskit 的根命令和全局初始化流程。
 package cli
 
 import (
@@ -20,6 +21,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// rootFlags 保存根命令兼容扫描模式专有的参数。
+// 这些参数不会继承给其他子命令。
 type rootFlags struct {
 	topN         int
 	excludeDirs  string
@@ -29,6 +32,8 @@ type rootFlags struct {
 	showVersion  bool
 }
 
+// Execute 是整个 CLI 的统一入口。
+// 它负责执行 Cobra 命令树，并在出错时走统一错误渲染逻辑。
 func Execute(version string) error {
 	app := newApplication(version)
 	err := app.rootCmd.Execute()
@@ -43,6 +48,8 @@ func Execute(version string) error {
 	return err
 }
 
+// application 把 root command、本次启动时刻以及已加载配置聚合在一起，
+// 便于在 Execute、PersistentPreRun 和错误渲染之间共享状态。
 type application struct {
 	rootCmd     *cobra.Command
 	global      *globalOptions
@@ -51,6 +58,7 @@ type application struct {
 	startedAt   time.Time
 }
 
+// newApplication 创建根命令、绑定全局参数并注册所有一级子命令。
 func newApplication(version string) *application {
 	app := &application{
 		global:    newGlobalOptions(),
@@ -112,6 +120,12 @@ func newApplication(version string) *application {
 	return app
 }
 
+// initialize 是所有命令执行前的统一初始化入口。
+// 当前职责包括：
+// 1. 读取关键环境变量；
+// 2. 在需要时加载配置；
+// 3. 把配置映射到全局参数；
+// 4. 做最终参数校验。
 func (a *application) initialize(cmd *cobra.Command) error {
 	a.global.ApplyBootstrapEnv(cmd)
 	if shouldSkipConfigLoad(cmd) {
@@ -130,6 +144,8 @@ func (a *application) initialize(cmd *cobra.Command) error {
 	return a.global.NormalizeAndValidate()
 }
 
+// shouldSkipConfigLoad 用于避免配置管理命令被“当前坏配置”反向阻塞。
+// 例如 policy validate 本来就是要去检查配置文件本身，如果这里先加载默认配置，反而会影响使用。
 func shouldSkipConfigLoad(cmd *cobra.Command) bool {
 	if cmd == nil {
 		return false
@@ -146,6 +162,8 @@ func shouldSkipConfigLoad(cmd *cobra.Command) bool {
 	}
 }
 
+// renderError 根据最终输出格式渲染错误结果。
+// 它和 main 包分离的原因是：错误输出也要遵守全局 format/output/quiet 规则。
 func (a *application) renderError(err error) error {
 	format := a.global.errorFormat()
 	writer := io.Writer(a.rootCmd.ErrOrStderr())
