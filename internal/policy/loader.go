@@ -1,3 +1,4 @@
+// Package policy 也负责策略文件的加载和自动发现。
 package policy
 
 import (
@@ -9,14 +10,17 @@ import (
 )
 
 type LoadOptions struct {
+	// ExplicitPath 表示命令行显式指定的策略文件路径。
 	ExplicitPath string
 }
 
+// LoadResult 返回最终生效策略以及本次参与合并的路径。
 type LoadResult struct {
 	Policy *Policy
 	Paths  []string
 }
 
+// Load 按“默认模板 -> 显式路径/环境变量 -> 系统级 -> 用户级”的顺序构建最终策略。
 func Load(opts LoadOptions) (*LoadResult, error) {
 	cfg := DefaultPolicy()
 	paths := make([]string, 0, 2)
@@ -63,6 +67,7 @@ func Load(opts LoadOptions) (*LoadResult, error) {
 	}, nil
 }
 
+// mergeFile 把单个策略 YAML 文件叠加到现有策略对象上。
 func mergeFile(cfg *Policy, path string, required bool) error {
 	if !fileExists(path) {
 		if required {
@@ -83,6 +88,7 @@ func mergeFile(cfg *Policy, path string, required bool) error {
 	return nil
 }
 
+// fileExists 用于判断某一层策略文件是否存在。
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

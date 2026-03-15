@@ -1,3 +1,4 @@
+// Package policy 负责策略文件的字段级和引用级校验。
 package policy
 
 import (
@@ -6,6 +7,9 @@ import (
 	"syskit/internal/errs"
 )
 
+// knownRuleIDs 是当前规则目录允许引用的规则 ID 集合。
+// 这里既包含 P0 规则，也包含文档中已经定义但尚未实现的后续规则，
+// 目的是让策略校验可以提前识别“拼写错误”而不是强耦合实现进度。
 var knownRuleIDs = map[string]struct{}{
 	"PORT-001":    {},
 	"PORT-002":    {},
@@ -23,6 +27,11 @@ var knownRuleIDs = map[string]struct{}{
 	"LOG-001":     {},
 }
 
+// Validate 对策略文件做基础校验，包括：
+// 1. 顶层必填字段；
+// 2. 规则 ID 是否存在；
+// 3. 严重级别和平台枚举是否合法；
+// 4. 阈值覆盖是否落在允许范围。
 func Validate(cfg *Policy) error {
 	if cfg == nil {
 		return errs.PolicyInvalid("策略不能为空", nil)
@@ -85,6 +94,7 @@ func Validate(cfg *Policy) error {
 	return nil
 }
 
+// validateThresholds 校验策略中的阈值覆盖字段。
 func validateThresholds(cfg ThresholdOverrides) error {
 	if cfg.CPUPercent < 0 || cfg.CPUPercent > 100 {
 		return errs.PolicyInvalid("策略项 threshold_overrides.cpu_percent 必须在 0 到 100 之间", nil)
@@ -107,6 +117,7 @@ func validateThresholds(cfg ThresholdOverrides) error {
 	return nil
 }
 
+// isSeverity 判断严重级别是否为协议允许值。
 func isSeverity(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "critical", "high", "medium", "low":
@@ -116,6 +127,7 @@ func isSeverity(value string) bool {
 	}
 }
 
+// isPlatform 判断平台名称是否为协议允许值。
 func isPlatform(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "windows", "linux", "darwin":

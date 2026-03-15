@@ -1,3 +1,5 @@
+// Package policy 定义策略文件模型。
+// 配置文件负责“默认行为”，策略文件负责“团队标准”，两者职责不同，因此单独拆包。
 package policy
 
 import (
@@ -6,6 +8,8 @@ import (
 	"runtime"
 )
 
+// Policy 是策略文件的顶层对象。
+// 它描述团队要求的规则、阈值覆盖、禁止进程和关键服务等标准化约束。
 type Policy struct {
 	Name                 string             `yaml:"name" json:"name"`
 	Version              string             `yaml:"version" json:"version"`
@@ -17,11 +21,13 @@ type Policy struct {
 	AllowPublicListen    []string           `yaml:"allow_public_listen" json:"allow_public_listen"`
 }
 
+// RequiredRule 表示某条规则在团队策略中的要求。
 type RequiredRule struct {
 	RuleID      string `yaml:"rule_id" json:"rule_id"`
 	MaxSeverity string `yaml:"max_severity" json:"max_severity"`
 }
 
+// ThresholdOverrides 表示对默认阈值的策略级覆盖。
 type ThresholdOverrides struct {
 	CPUPercent      float64 `yaml:"cpu_percent" json:"cpu_percent"`
 	MemPercent      float64 `yaml:"mem_percent" json:"mem_percent"`
@@ -31,16 +37,20 @@ type ThresholdOverrides struct {
 	FileSizeGB      float64 `yaml:"file_size_gb" json:"file_size_gb"`
 }
 
+// ForbiddenProcess 表示策略中明确禁止出现的进程。
 type ForbiddenProcess struct {
 	Name     string `yaml:"name" json:"name"`
 	Severity string `yaml:"severity" json:"severity"`
 }
 
+// RequiredService 表示策略要求必须存在或运行的服务。
 type RequiredService struct {
 	Name     string   `yaml:"name" json:"name"`
 	Platform []string `yaml:"platform" json:"platform"`
 }
 
+// DefaultPolicy 返回内置默认策略模板。
+// 这个模板主要用于 `policy init` 和 `policy show --default`。
 func DefaultPolicy() *Policy {
 	return &Policy{
 		Name:    "team-dev-standard",
@@ -65,6 +75,7 @@ func DefaultPolicy() *Policy {
 	}
 }
 
+// SystemPolicyPath 返回当前平台的系统级策略文件路径。
 func SystemPolicyPath() string {
 	switch runtime.GOOS {
 	case "windows":
@@ -80,6 +91,7 @@ func SystemPolicyPath() string {
 	}
 }
 
+// UserPolicyPath 返回当前平台的用户级策略文件路径。
 func UserPolicyPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
