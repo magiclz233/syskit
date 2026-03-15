@@ -1,14 +1,21 @@
 // Package disk 实现磁盘相关命令。
-// 当前已落地 `disk scan`，后续 `disk` 总览会继续在这个包里扩展。
 package disk
 
 import (
 	"syskit/internal/cliutil"
+	collector "syskit/internal/collectors/disk"
 	"syskit/internal/errs"
+	"syskit/internal/output"
 	"syskit/pkg/utils"
+	"time"
 
 	"github.com/spf13/cobra"
 )
+
+// overviewOptions 保存 `disk` 总览命令参数。
+type overviewOptions struct {
+	detail bool
+}
 
 // scanOptions 保存 `disk scan` 独有的参数。
 type scanOptions struct {
@@ -20,18 +27,20 @@ type scanOptions struct {
 }
 
 // NewCommand 创建 `disk` 顶层命令。
-// 在 `disk` 总览尚未完成前，直接执行 `disk` 会展示帮助而不是报“未开发”，
-// 这样用户仍然可以自然发现已经可用的 `disk scan` 子命令。
+// `disk` 直接执行时输出磁盘容量总览，`disk scan` 继续承载大文件扫描能力。
 func NewCommand() *cobra.Command {
+	overviewOpts := &overviewOptions{}
+
 	cmd := &cobra.Command{
 		Use:   "disk",
 		Short: "磁盘总览与扫描",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return cmd.Help()
+			return runOverview(cmd, overviewOpts)
 		},
 	}
 
+	cmd.Flags().BoolVar(&overviewOpts.detail, "detail", false, "显示设备、文件系统和可用容量等详细字段")
 	cmd.AddCommand(newScanCommand())
 	return cmd
 }
@@ -106,4 +115,18 @@ func runScan(cmd *cobra.Command, path string, opts *scanOptions) error {
 		OutputPath: outputPath,
 		Quiet:      cliutil.ResolveBoolFlag(cmd, "quiet"),
 	})
+}
+
+// runOverview 采集并输出磁盘容量总览。
+func runOverview(cmd *cobra.Command, opts *overviewOptions) error {
+	startedAt := time.Now()
+
+	overview, err := collector.CollectOverview()
+	if err != nil {
+		return errs.ExecutionFailed("采集磁盘总览失败", err)
+	}
+
+	result := output.NewSuccessResult("磁盘总览采集完成", overview, startedAt)
+	presenter := output.NewDiskOverviewPresenter(overview, opts.detail)
+	return cliutil.RenderCommandResult(cmd, result, presenter)
 }
