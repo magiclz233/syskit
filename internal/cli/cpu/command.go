@@ -1,3 +1,4 @@
+// Package cpu 负责 CPU 相关命令。
 package cpu
 
 import (
@@ -6,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewCommand 创建 `cpu` 顶层命令。
+// 当前具体实现还未落地，因此先返回统一占位错误。
 func NewCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "cpu",

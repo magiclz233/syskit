@@ -1,3 +1,4 @@
+// Package report 负责报告生成命令组。
 package report
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewCommand 创建 `report` 顶层命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "report",

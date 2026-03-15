@@ -1,3 +1,4 @@
+// Package proc 负责进程查询和管理命令组。
 package proc
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewCommand 创建 `proc` 顶层命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "proc",

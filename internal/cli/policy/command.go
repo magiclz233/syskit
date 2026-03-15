@@ -1,3 +1,5 @@
+// Package policy 负责 `policy` 命令组。
+// 这个命令组是 P0 配置/策略闭环的入口，承担查看、初始化和校验三类职责。
 package policy
 
 import (
@@ -33,6 +35,7 @@ type validateOptions struct {
 	kind string
 }
 
+// showResultData 是 `policy show` 的结构化输出载荷。
 type showResultData struct {
 	Type    string            `json:"type"`
 	Default bool              `json:"default"`
@@ -40,16 +43,19 @@ type showResultData struct {
 	Policy  *policyResultData `json:"policy,omitempty"`
 }
 
+// configResultData 表示“生效配置 + 来源路径”。
 type configResultData struct {
 	Sources   []string       `json:"sources,omitempty"`
 	Effective *config.Config `json:"effective"`
 }
 
+// policyResultData 表示“生效策略 + 来源路径”。
 type policyResultData struct {
 	Sources   []string          `json:"sources,omitempty"`
 	Effective *policycfg.Policy `json:"effective"`
 }
 
+// initResultData 是 `policy init` 的结构化输出载荷。
 type initResultData struct {
 	Type           string   `json:"type"`
 	GeneratedFiles []string `json:"generated_files,omitempty"`
@@ -57,6 +63,7 @@ type initResultData struct {
 	PolicyTemplate string   `json:"policy_template,omitempty"`
 }
 
+// validateResultData 是 `policy validate` 成功时的结构化输出载荷。
 type validateResultData struct {
 	Type    string `json:"type"`
 	Path    string `json:"path"`
@@ -64,6 +71,7 @@ type validateResultData struct {
 	Message string `json:"message"`
 }
 
+// NewCommand 创建 `policy` 顶层命令，并注册三个 P0 子命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
@@ -83,6 +91,7 @@ func NewCommand() *cobra.Command {
 	return cmd
 }
 
+// newShowCommand 创建 `policy show`。
 func newShowCommand() *cobra.Command {
 	opts := &showOptions{kind: "all"}
 
@@ -102,6 +111,7 @@ func newShowCommand() *cobra.Command {
 	return cmd
 }
 
+// newInitCommand 创建 `policy init`。
 func newInitCommand() *cobra.Command {
 	opts := &initOptions{kind: "all"}
 
@@ -118,6 +128,7 @@ func newInitCommand() *cobra.Command {
 	return cmd
 }
 
+// newValidateCommand 创建 `policy validate`。
 func newValidateCommand() *cobra.Command {
 	opts := &validateOptions{kind: "config"}
 
@@ -134,6 +145,8 @@ func newValidateCommand() *cobra.Command {
 	return cmd
 }
 
+// runShow 根据 --type 和 --default 组合出最终要展示的配置/策略内容。
+// 当传入 --default 时，命令只展示内置模板，不读取磁盘上的实际文件。
 func runShow(cmd *cobra.Command, opts *showOptions) error {
 	startedAt := time.Now()
 	kind, err := normalizeType(opts.kind, true)
@@ -169,6 +182,8 @@ func runShow(cmd *cobra.Command, opts *showOptions) error {
 	return renderCommandResult(cmd, result, newDocumentPresenter("策略与配置", sections), cliutil.ResolveStringFlag(cmd, "output"))
 }
 
+// runInit 负责生成默认配置模板和策略模板。
+// 如果传了 --output，则写文件；否则直接按当前 format 输出到 stdout。
 func runInit(cmd *cobra.Command, opts *initOptions) error {
 	startedAt := time.Now()
 	kind, err := normalizeType(opts.kind, true)
@@ -226,6 +241,8 @@ func runInit(cmd *cobra.Command, opts *initOptions) error {
 	return renderCommandResult(cmd, result, newDocumentPresenter("策略模板", sections), "")
 }
 
+// runValidate 校验指定路径是合法配置还是合法策略。
+// 这里对 config 校验会禁用环境变量覆盖，确保校验的是“文件本身”而不是“文件 + 当前环境”。
 func runValidate(cmd *cobra.Command, path string, opts *validateOptions) error {
 	startedAt := time.Now()
 	kind, err := normalizeType(opts.kind, false)
@@ -270,6 +287,7 @@ func runValidate(cmd *cobra.Command, path string, opts *validateOptions) error {
 	return renderCommandResult(cmd, result, newDocumentPresenter("策略校验", sections), cliutil.ResolveStringFlag(cmd, "output"))
 }
 
+// loadConfigSection 读取配置部分，并把结果转换成“结构化数据 + 文档段落”两种表示。
 func loadConfigSection(cmd *cobra.Command, defaultOnly bool) (*configResultData, documentSection, error) {
 	var (
 		cfg   *config.Config
@@ -305,6 +323,7 @@ func loadConfigSection(cmd *cobra.Command, defaultOnly bool) (*configResultData,
 		nil
 }
 
+// loadPolicySection 读取策略部分，并同时生成 presenter 所需的段落内容。
 func loadPolicySection(cmd *cobra.Command, defaultOnly bool) (*policyResultData, documentSection, error) {
 	var (
 		cfg   *policycfg.Policy
@@ -340,6 +359,8 @@ func loadPolicySection(cmd *cobra.Command, defaultOnly bool) (*policyResultData,
 		nil
 }
 
+// normalizeType 统一校验 --type 的取值。
+// allowAll 主要用于区分 show/init 和 validate：前两者支持 all，validate 不支持。
 func normalizeType(value string, allowAll bool) (string, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	switch value {
@@ -357,6 +378,7 @@ func normalizeType(value string, allowAll bool) (string, error) {
 	return "", errs.InvalidArgument("仅支持 --type config 或 --type policy")
 }
 
+// marshalYAML 把任意对象序列化成 YAML 文本，用于 show/init 的可读输出。
 func marshalYAML(value any) (string, error) {
 	data, err := yaml.Marshal(value)
 	if err != nil {
@@ -365,6 +387,8 @@ func marshalYAML(value any) (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
+// sourceLabels 统一处理“来源路径”展示。
+// 如果没有实际文件参与合并，则用 default 表示来自内置模板。
 func sourceLabels(paths []string, defaultOnly bool) []string {
 	if defaultOnly || len(paths) == 0 {
 		return []string{"default"}
@@ -372,6 +396,8 @@ func sourceLabels(paths []string, defaultOnly bool) []string {
 	return paths
 }
 
+// renderCommandResult 负责把 policy 子命令的结果按当前 format 输出出去，
+// 并处理 --output 文件重定向。
 func renderCommandResult(cmd *cobra.Command, result model.CommandResult, presenter output.Presenter, outputPath string) error {
 	format := cliutil.ResolveFormat(cmd)
 	writer := io.Writer(cmd.OutOrStdout())
@@ -396,6 +422,8 @@ func renderCommandResult(cmd *cobra.Command, result model.CommandResult, present
 
 	return nil
 }
+
+// configureOutputWriter 为 policy 命令打开结构化输出文件。
 func configureOutputWriter(format string, outputPath string, out *io.Writer) (func(), error) {
 	if outputPath == "" || format == "csv" {
 		return nil, nil
@@ -419,6 +447,9 @@ func configureOutputWriter(format string, outputPath string, out *io.Writer) (fu
 	}, nil
 }
 
+// writeTemplates 根据 --type 和 --output 决定是否落盘以及如何落盘。
+// - type=all 时，--output 必须表示目录；
+// - type=config/policy 时，--output 可以是文件路径，也可以是已有目录。
 func writeTemplates(kind string, outputTarget string, configTemplate string, policyTemplate string) ([]string, error) {
 	if outputTarget == "" {
 		return nil, nil
@@ -469,6 +500,7 @@ func writeTemplates(kind string, outputTarget string, configTemplate string, pol
 	}
 }
 
+// resolveSingleOutputPath 解析单文件模板的最终输出路径。
 func resolveSingleOutputPath(outputTarget string, fileName string) (string, error) {
 	info, err := os.Stat(outputTarget)
 	switch {
@@ -483,6 +515,7 @@ func resolveSingleOutputPath(outputTarget string, fileName string) (string, erro
 	}
 }
 
+// writeFile 用统一错误协议写模板文件。
 func writeFile(path string, content string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil && filepath.Dir(path) != "." {
 		return errs.ExecutionFailed("创建输出目录失败", err)
@@ -493,6 +526,8 @@ func writeFile(path string, content string) error {
 	return nil
 }
 
+// csvPrefix 从结构化输出路径中推导 CSV 前缀。
+// 当前 policy 命令暂不支持 CSV，但仍保留这层实现，便于和通用 output.Render 接口对齐。
 func csvPrefix(outputPath string) string {
 	if outputPath == "" {
 		return ""

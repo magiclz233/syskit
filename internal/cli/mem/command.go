@@ -1,3 +1,4 @@
+// Package mem 负责内存相关命令。
 package mem
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewCommand 创建 `mem` 顶层命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mem",

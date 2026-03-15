@@ -1,3 +1,4 @@
+// Package snapshot 负责快照相关命令组。
 package snapshot
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewCommand 创建 `snapshot` 顶层命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "snapshot",

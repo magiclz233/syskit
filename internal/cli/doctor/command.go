@@ -1,3 +1,4 @@
+// Package doctor 负责系统体检命令组。
 package doctor
 
 import (
@@ -6,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewCommand 创建 `doctor` 顶层命令，并挂载当前已注册的专项诊断子命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",

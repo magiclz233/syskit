@@ -1,3 +1,5 @@
+// Package disk 实现磁盘相关命令。
+// 当前已落地 `disk scan`，后续 `disk` 总览会继续在这个包里扩展。
 package disk
 
 import (
@@ -8,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// scanOptions 保存 `disk scan` 独有的参数。
 type scanOptions struct {
 	limit     int
 	minSize   string
@@ -16,6 +19,9 @@ type scanOptions struct {
 	exportCSV string
 }
 
+// NewCommand 创建 `disk` 顶层命令。
+// 在 `disk` 总览尚未完成前，直接执行 `disk` 会展示帮助而不是报“未开发”，
+// 这样用户仍然可以自然发现已经可用的 `disk scan` 子命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "disk",
@@ -30,6 +36,7 @@ func NewCommand() *cobra.Command {
 	return cmd
 }
 
+// newScanCommand 创建 `disk scan` 子命令并绑定其局部参数。
 func newScanCommand() *cobra.Command {
 	opts := &scanOptions{
 		limit:   20,
@@ -56,6 +63,8 @@ func newScanCommand() *cobra.Command {
 	return cmd
 }
 
+// runScan 把命令行参数转换成共享扫描执行器所需的结构，
+// 并在进入真正扫描前完成必要的参数校验。
 func runScan(cmd *cobra.Command, path string, opts *scanOptions) error {
 	minSizeBytes, err := utils.ParseSize(opts.minSize)
 	if err != nil {
