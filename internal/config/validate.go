@@ -1,3 +1,4 @@
+// Package config 同时负责配置文件的字段级校验。
 package config
 
 import (
@@ -6,6 +7,9 @@ import (
 	"syskit/internal/errs"
 )
 
+// Validate 对最终生效配置做基础 schema 校验和取值校验。
+// 这里的策略是只做“协议层”校验，不做过重的业务校验，
+// 这样既能尽早拦住坏配置，也不会把模块级逻辑耦合进配置层。
 func Validate(cfg *Config) error {
 	if cfg == nil {
 		return errs.ConfigInvalid("配置不能为空", nil)
@@ -68,6 +72,7 @@ func Validate(cfg *Config) error {
 	return nil
 }
 
+// validateEnum 校验枚举型字段是否落在允许值集合中。
 func validateEnum(field string, value string, allowed ...string) error {
 	value = strings.TrimSpace(strings.ToLower(value))
 	for _, candidate := range allowed {
@@ -82,6 +87,7 @@ func validateEnum(field string, value string, allowed ...string) error {
 	)
 }
 
+// validatePercent 校验百分比字段必须落在 0-100 闭区间内。
 func validatePercent(field string, value float64) error {
 	if value < 0 || value > 100 {
 		return errs.ConfigInvalid(fmt.Sprintf("配置项 %s 必须在 0 到 100 之间", field), nil)

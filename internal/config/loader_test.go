@@ -1,3 +1,4 @@
+// Package config 的测试主要验证配置优先级和校验行为是否符合预期。
 package config
 
 import (
@@ -9,6 +10,7 @@ import (
 	"testing"
 )
 
+// TestLoadPrecedence 验证“系统配置 -> 用户配置 -> 环境变量”的覆盖顺序。
 func TestLoadPrecedence(t *testing.T) {
 	tempDir := t.TempDir()
 	programData := filepath.Join(tempDir, "programdata")
@@ -69,6 +71,7 @@ logging:
 	}
 }
 
+// TestLoadRejectsInvalidConfig 验证坏配置能够被准确拦截并返回统一错误码。
 func TestLoadRejectsInvalidConfig(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	writeTestFile(t, configPath, `
@@ -91,6 +94,7 @@ output:
 	}
 }
 
+// writeTestFile 是测试辅助函数，用于快速落测试配置文件。
 func writeTestFile(t *testing.T, path string, content string) {
 	t.Helper()
 

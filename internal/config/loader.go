@@ -1,3 +1,4 @@
+// Package config 除了配置模型外，也负责配置文件加载、默认值合并和路径解析。
 package config
 
 import (
@@ -12,15 +13,25 @@ import (
 )
 
 type LoadOptions struct {
-	ExplicitPath        string
+	// ExplicitPath 表示命令行显式传入的配置路径。
+	// 只要这个字段非空，就不再走系统/用户级自动发现。
+	ExplicitPath string
+	// DisableEnvOverrides 用于“只验证文件本身”的场景。
+	// 例如 policy validate config 时，不希望环境变量把待校验文件覆盖掉。
 	DisableEnvOverrides bool
 }
 
+// LoadResult 返回最终生效配置以及本次参与合并的配置文件路径。
 type LoadResult struct {
 	Config *Config
 	Paths  []string
 }
 
+// Load 按既定优先级加载配置：
+// 1. 默认值；
+// 2. 显式路径或环境变量指定路径；
+// 3. 否则按系统级 -> 用户级顺序叠加；
+// 4. 最后叠加环境变量覆盖，并做路径展开和字段校验。
 func Load(opts LoadOptions) (*LoadResult, error) {
 	cfg := DefaultConfig()
 	paths := make([]string, 0, 2)
@@ -71,6 +82,8 @@ func Load(opts LoadOptions) (*LoadResult, error) {
 	}, nil
 }
 
+// DefaultConfig 返回内置默认配置。
+// 这个默认值既用于真正执行命令时的基线，也用于 policy init 生成配置模板。
 func DefaultConfig() *Config {
 	return &Config{
 		Output: OutputConfig{
@@ -129,6 +142,7 @@ func DefaultConfig() *Config {
 	}
 }
 
+// SystemConfigPath 返回当前平台的系统级配置路径。
 func SystemConfigPath() string {
 	switch runtime.GOOS {
 	case "windows":
@@ -144,6 +158,7 @@ func SystemConfigPath() string {
 	}
 }
 
+// UserConfigPath 返回当前平台的用户级配置路径。
 func UserConfigPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -152,6 +167,8 @@ func UserConfigPath() string {
 	return filepath.Join(homeDir, ".syskit", "config.yaml")
 }
 
+// mergeFile 把单个 YAML 文件叠加到已有配置对象上。
+// required 为 true 时，文件不存在会直接报错；否则按“没有该层配置”处理。
 func mergeFile(cfg *Config, path string, required bool) error {
 	if !fileExists(path) {
 		if required {
@@ -172,6 +189,8 @@ func mergeFile(cfg *Config, path string, required bool) error {
 	return nil
 }
 
+// applyEnvOverrides 处理配置层允许的环境变量覆盖。
+// 这里的目标是让自动化和 CI 场景可以不改配置文件，直接通过环境变量切换关键参数。
 func applyEnvOverrides(cfg *Config) {
 	if value := strings.TrimSpace(os.Getenv("SYSKIT_OUTPUT")); value != "" {
 		cfg.Output.Format = value
@@ -192,11 +211,14 @@ func applyEnvOverrides(cfg *Config) {
 	}
 }
 
+// fileExists 只做最轻量的存在性检查，避免在 Load 里重复展开 os.Stat 逻辑。
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
+// parseBool 用于解析布尔型环境变量。
+// 返回值中的第二个 bool 用来区分“解析为 false”和“解析失败”。
 func parseBool(value string) (bool, bool) {
 	parsed, err := strconv.ParseBool(value)
 	if err != nil {
@@ -205,15 +227,18 @@ func parseBool(value string) (bool, bool) {
 	return parsed, true
 }
 
+// defaultLogPath 返回默认日志文件路径。
 func defaultLogPath() string {
 	base := defaultDataRoot()
 	return filepath.Join(base, "logs", "syskit.log")
 }
 
+// defaultDataDir 返回默认数据目录路径。
 func defaultDataDir() string {
 	return filepath.Join(defaultDataRoot(), "data")
 }
 
+// defaultDataRoot 返回当前平台的默认数据根目录。
 func defaultDataRoot() string {
 	switch runtime.GOOS {
 	case "windows":
@@ -233,11 +258,14 @@ func defaultDataRoot() string {
 	}
 }
 
+// expandConfiguredPaths 负责把配置里允许写成 ~/xxx 的路径展开成绝对路径。
 func expandConfiguredPaths(cfg *Config) {
 	cfg.Logging.File = expandHome(cfg.Logging.File)
 	cfg.Storage.DataDir = expandHome(cfg.Storage.DataDir)
 }
 
+// expandHome 将以 ~ 开头的路径替换为当前用户主目录。
+// 如果无法获取主目录，则保留原值，避免在加载阶段直接破坏用户输入。
 func expandHome(path string) string {
 	path = strings.TrimSpace(path)
 	if path == "" || path == "~" {
