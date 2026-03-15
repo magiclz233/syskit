@@ -75,16 +75,16 @@
 |---|---|---|---|---|
 | 1 | `P0-001` | `已开发` | 建立新 CLI 工程骨架 | `cmd/syskit/main.go` 仅做启动；引入 `internal/cli` 根命令；子命令注册结构落地 |
 | 2 | `P0-002` | `已开发` | 实现全局参数与统一退出码基线 | 落地 `--format`、`--json`、`--output`、`--config`、`--policy`、`--quiet`、`--verbose`、`--dry-run`、`--apply`、`--yes`、`--fail-on`、`--timeout`、`--no-color` |
-| 3 | `P0-003` | `待开发` | 实现统一结果模型与输出渲染 | 落地 `CommandResult`、`Metadata`、`ErrorInfo`，支持 `table/json/markdown/csv` 基础渲染 |
-| 4 | `P0-004` | `待开发` | 实现错误码与元数据协议 | 落地 `ERR_INVALID_ARGUMENT`、`ERR_PERMISSION_DENIED`、`ERR_EXECUTION_FAILED` 等 P0 所需错误码及统一封装 |
-| 5 | `P0-005` | `待开发` | 实现配置加载基线 | 支持默认值、系统配置、用户配置、环境变量覆盖、命令行覆盖 |
-| 6 | `P0-006` | `待开发` | 实现策略模型与 `policy` 命令 | 支持 `policy show`、`policy init`、`policy validate`，并完成 config/policy 模型与校验 |
+| 3 | `P0-003` | `已开发` | 实现统一结果模型与输出渲染 | 落地 `CommandResult`、`Metadata`、`ErrorInfo`，支持 `table/json/markdown/csv` 基础渲染 |
+| 4 | `P0-004` | `已开发` | 实现错误码与元数据协议 | 落地 `ERR_INVALID_ARGUMENT`、`ERR_PERMISSION_DENIED`、`ERR_EXECUTION_FAILED` 等 P0 所需错误码及统一封装 |
+| 5 | `P0-005` | `已开发` | 实现配置加载基线 | 支持默认值、系统配置、用户配置、环境变量覆盖、命令行覆盖 |
+| 6 | `P0-006` | `已开发` | 实现策略模型与 `policy` 命令 | 支持 `policy show`、`policy init`、`policy validate`，并完成 config/policy 模型与校验 |
 
 ### 阶段 B：核心采集与高频命令
 
 | 顺序 | ID | 状态 | 需求项 | 关键交付 |
 |---|---|---|---|---|
-| 7 | `P0-007` | `待开发` | 迁移现有扫描器为 `disk scan` | 复用当前大文件/大目录扫描能力，对齐 `syskit disk scan <path>` 协议与参数 |
+| 7 | `P0-007` | `已开发` | 迁移现有扫描器为 `disk scan` | 复用当前大文件/大目录扫描能力，对齐 `syskit disk scan <path>` 协议与参数 |
 | 8 | `P0-008` | `待开发` | 实现 `disk` 总览命令 | 输出分区、空间、使用率等 P0 基础信息 |
 | 9 | `P0-009` | `待开发` | 实现 `proc` 命令集 | 完成 `proc top`、`proc tree`、`proc info`、`proc kill` |
 | 10 | `P0-010` | `待开发` | 实现 `port` 命令集 | 完成 `port <port>`、`port list`、`port kill <port>` |
@@ -146,6 +146,11 @@
 - 2026-03-14: `P0-PRE-001` 已开发，项目名称确定为 `syskit`，并启动从 `find-large-files` 到 `syskit` 的命名迁移。
 - 2026-03-14: `P0-001` 已开发，完成 `cmd/syskit/main.go` + `internal/cli/` 目录骨架、P0 子命令注册，并保留现有根命令目录扫描能力。
 - 2026-03-14: `P0-002` 已开发，完成全局 persistent flags 接入，并建立统一退出码基线实现。
+- 2026-03-14: `P0-003` 已开发，完成统一 `CommandResult/Metadata/ErrorInfo` 模型、基础 renderer，以及根命令扫描的统一输出接入。
+- 2026-03-14: `P0-004` 已开发，完成统一 `CLIError` 封装、P0 错误码映射、JSON/Markdown 错误渲染和退出码协议，并修正配置/策略校验类错误的封装行为。
+- 2026-03-14: `P0-005` 已开发，完成默认值、系统配置、用户配置、环境变量和命令行覆盖的配置加载链路，并补齐基础字段校验与优先级测试。
+- 2026-03-14: `P0-006` 已开发，完成策略文件模型、校验器、自动查找和 `policy show/init/validate` 命令闭环。
+- 2026-03-14: `P0-007` 已开发，完成共享扫描执行器、`disk scan` 命令接入，并补齐 `--limit`、`--min-size`、`--depth`、`--exclude`、`--export-csv` 参数支持。
 - 2026-03-14: 目录结构已迁移为 `cmd/<binary> + internal/cli`，并同步更新构建脚本、发布脚本和架构文档。
 
 ## 9. 已确认事项
