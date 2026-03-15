@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -70,10 +71,12 @@ func (s *Scanner) Scan() (*ScanResult, error) {
 	// 根目录本身也要参与累计大小计算，所以先放一条初始记录。
 	s.dirSizes[cleanPath] = 0
 
-	fmt.Printf("\n=== 准确扫描模式 ===\n")
-	fmt.Println("策略: 全量扫描整个目录树，结果完整")
-	fmt.Printf("正在扫描: %s\n", cleanPath)
-	fmt.Println()
+	if s.options.ShowBanner {
+		fmt.Fprintln(s.logWriter(), "\n=== 准确扫描模式 ===")
+		fmt.Fprintln(s.logWriter(), "策略: 全量扫描整个目录树，结果完整")
+		fmt.Fprintf(s.logWriter(), "正在扫描: %s\n", cleanPath)
+		fmt.Fprintln(s.logWriter())
+	}
 
 	// filepath.WalkDir 会从根目录开始深度遍历整个目录树。
 	// 每碰到一个目录或文件，都会回调到 walkFunc。
@@ -85,7 +88,7 @@ func (s *Scanner) Scan() (*ScanResult, error) {
 	// 如果启用了进度显示，扫描结束后补一个换行，
 	// 否则最后一条 \r 覆盖式输出会和后面的结果挤在同一行。
 	if s.options.ShowProgress {
-		fmt.Println()
+		fmt.Fprintln(s.logWriter())
 	}
 
 	result := &ScanResult{
@@ -95,6 +98,7 @@ func (s *Scanner) Scan() (*ScanResult, error) {
 		TotalDirs:     s.totalDirs,
 		ScanDuration:  time.Since(startTime),
 	}
+	result.ScanDurationMs = result.ScanDuration.Milliseconds()
 
 	// 目录和文件结果可以分别关闭。
 	// 这样用户可以只看目录，或者只看文件。
@@ -130,6 +134,10 @@ func (s *Scanner) walkFunc(path string, d fs.DirEntry, walkErr error) error {
 	}
 
 	if d.IsDir() {
+		if path != s.rootPath && s.options.MaxDepth > 0 && s.pathDepth(path) > s.options.MaxDepth {
+			return filepath.SkipDir
+		}
+
 		// 根目录本身不参与排除逻辑，也不计入“子目录数量”。
 		if path != s.rootPath && s.shouldExcludeDir(d.Name()) {
 			return filepath.SkipDir
@@ -141,6 +149,10 @@ func (s *Scanner) walkFunc(path string, d fs.DirEntry, walkErr error) error {
 			s.dirSizes[path] = 0
 			s.showProgress()
 		}
+		return nil
+	}
+
+	if s.options.MaxDepth > 0 && s.pathDepth(path) > s.options.MaxDepth {
 		return nil
 	}
 
@@ -249,10 +261,10 @@ func (s *Scanner) getTopFiles() []FileInfo {
 	})
 
 	if len(s.files) <= s.options.TopN {
-		return s.files
+		return s.filterFiles(s.files)
 	}
 
-	return s.files[:s.options.TopN]
+	return s.filterFiles(s.files[:s.options.TopN])
 }
 
 // getTopDirs 返回最终的 Top N 最大子目录列表。
@@ -279,10 +291,10 @@ func (s *Scanner) getTopDirs() []DirInfo {
 	})
 
 	if len(dirs) <= s.options.TopN {
-		return dirs
+		return s.filterDirs(dirs)
 	}
 
-	return dirs[:s.options.TopN]
+	return s.filterDirs(dirs[:s.options.TopN])
 }
 
 // showProgress 按固定时间间隔输出扫描进度。
@@ -298,8 +310,54 @@ func (s *Scanner) showProgress() {
 	}
 	s.lastProgress = now
 
-	fmt.Printf("\r进度: %d 个文件, %d 个目录, %.2f GB",
+	fmt.Fprintf(s.logWriter(), "\r进度: %d 个文件, %d 个目录, %.2f GB",
 		s.totalFiles,
 		s.totalDirs,
 		float64(s.scannedBytes)/(1024*1024*1024))
+}
+
+func (s *Scanner) logWriter() io.Writer {
+	if s.options.LogOutput == nil {
+		return io.Discard
+	}
+
+	return s.options.LogOutput
+}
+
+func (s *Scanner) pathDepth(path string) int {
+	rel, err := filepath.Rel(s.rootPath, path)
+	if err != nil || rel == "." {
+		return 0
+	}
+
+	parts := strings.Split(rel, string(filepath.Separator))
+	return len(parts)
+}
+
+func (s *Scanner) filterFiles(files []FileInfo) []FileInfo {
+	if s.options.MinSizeBytes <= 0 {
+		return files
+	}
+
+	filtered := make([]FileInfo, 0, len(files))
+	for _, file := range files {
+		if file.Size >= s.options.MinSizeBytes {
+			filtered = append(filtered, file)
+		}
+	}
+	return filtered
+}
+
+func (s *Scanner) filterDirs(dirs []DirInfo) []DirInfo {
+	if s.options.MinSizeBytes <= 0 {
+		return dirs
+	}
+
+	filtered := make([]DirInfo, 0, len(dirs))
+	for _, dir := range dirs {
+		if dir.TotalSize >= s.options.MinSizeBytes {
+			filtered = append(filtered, dir)
+		}
+	}
+	return filtered
 }
