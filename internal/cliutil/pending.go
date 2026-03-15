@@ -8,7 +8,7 @@ import (
 )
 
 func PendingError(commandPath string) error {
-	return errs.New(errs.ExitExecutionFailed, fmt.Sprintf("%s 尚未开发", commandPath))
+	return errs.New(errs.ExitExecutionFailed, errs.CodeExecutionFailed, fmt.Sprintf("%s 尚未开发", commandPath))
 }
 
 func NewPendingCommand(use string, short string) *cobra.Command {
