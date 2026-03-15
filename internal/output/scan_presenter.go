@@ -1,3 +1,4 @@
+// Package output 中的 ScanPresenter 负责渲染目录扫描结果。
 package output
 
 import (
@@ -11,14 +12,17 @@ import (
 	"syskit/pkg/utils"
 )
 
+// ScanPresenter 把 scanner.ScanResult 渲染成 table/markdown/csv。
 type ScanPresenter struct {
 	result *scanner.ScanResult
 }
 
+// NewScanPresenter 创建扫描结果 presenter。
 func NewScanPresenter(result *scanner.ScanResult) *ScanPresenter {
 	return &ScanPresenter{result: result}
 }
 
+// RenderTable 以终端友好的文本表格输出扫描统计、Top 目录和 Top 文件。
 func (p *ScanPresenter) RenderTable(w io.Writer) error {
 	fmt.Fprintln(w, "\n"+strings.Repeat("=", 80))
 	fmt.Fprintln(w, "扫描统计")
@@ -57,6 +61,7 @@ func (p *ScanPresenter) RenderTable(w io.Writer) error {
 	return nil
 }
 
+// RenderMarkdown 以 Markdown 表格形式输出扫描结果。
 func (p *ScanPresenter) RenderMarkdown(w io.Writer) error {
 	fmt.Fprintln(w, "# 扫描统计")
 	fmt.Fprintln(w)
@@ -93,6 +98,8 @@ func (p *ScanPresenter) RenderMarkdown(w io.Writer) error {
 	return nil
 }
 
+// RenderCSV 将目录和文件结果分别导出为两个 CSV 文件。
+// 这样做比把两类记录强行塞进一个表更容易后续处理。
 func (p *ScanPresenter) RenderCSV(w io.Writer, prefix string) error {
 	if prefix == "" {
 		prefix = "result"
@@ -117,6 +124,7 @@ func (p *ScanPresenter) RenderCSV(w io.Writer, prefix string) error {
 	return nil
 }
 
+// writeDirsCSV 写出目录结果 CSV。
 func writeDirsCSV(path string, result *scanner.ScanResult) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -146,6 +154,7 @@ func writeDirsCSV(path string, result *scanner.ScanResult) error {
 	return nil
 }
 
+// writeFilesCSV 写出文件结果 CSV。
 func writeFilesCSV(path string, result *scanner.ScanResult) error {
 	f, err := os.Create(path)
 	if err != nil {

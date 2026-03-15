@@ -1,3 +1,4 @@
+// Package output 负责把命令执行结果渲染成 table/json/markdown/csv 等格式。
 package output
 
 import (
@@ -16,12 +17,15 @@ import (
 
 const schemaVersion = "1.0"
 
+// Presenter 定义“业务数据 -> 非 JSON 可读输出”的渲染接口。
+// JSON 走统一结构体序列化；table/markdown/csv 则由各命令自己的 presenter 决定展示细节。
 type Presenter interface {
 	RenderTable(w io.Writer) error
 	RenderMarkdown(w io.Writer) error
 	RenderCSV(w io.Writer, prefix string) error
 }
 
+// NewSuccessResult 构造成功场景下的统一结果对象。
 func NewSuccessResult(msg string, data any, startedAt time.Time) model.CommandResult {
 	return model.CommandResult{
 		Code:  0,
@@ -40,6 +44,7 @@ func NewSuccessResult(msg string, data any, startedAt time.Time) model.CommandRe
 	}
 }
 
+// Render 根据 format 选择最终输出方式。
 func Render(w io.Writer, format string, result model.CommandResult, presenter Presenter, csvPrefix string) error {
 	switch format {
 	case "json":
@@ -55,6 +60,7 @@ func Render(w io.Writer, format string, result model.CommandResult, presenter Pr
 	}
 }
 
+// renderJSON 统一负责 JSON 序列化和写出。
 func renderJSON(w io.Writer, result model.CommandResult) error {
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
@@ -68,6 +74,7 @@ func renderJSON(w io.Writer, result model.CommandResult) error {
 	return nil
 }
 
+// NewErrorResult 构造错误场景下的统一结果对象。
 func NewErrorResult(err error, startedAt time.Time) model.CommandResult {
 	return model.CommandResult{
 		Code: errs.Code(err),
@@ -90,6 +97,8 @@ func NewErrorResult(err error, startedAt time.Time) model.CommandResult {
 	}
 }
 
+// RenderError 渲染错误结果。
+// JSON 仍走统一 CommandResult；非 JSON 则走更适合人读的简化文本。
 func RenderError(w io.Writer, format string, err error, startedAt time.Time) error {
 	switch format {
 	case "json":
@@ -118,6 +127,7 @@ func RenderError(w io.Writer, format string, err error, startedAt time.Time) err
 	}
 }
 
+// hostname 获取当前主机名；失败时返回空字符串而不是中断命令。
 func hostname() string {
 	host, err := os.Hostname()
 	if err != nil {
@@ -127,6 +137,8 @@ func hostname() string {
 	return host
 }
 
+// newTraceID 生成一条执行链路的短 trace ID。
+// 如果随机数源不可用，则退化为基于时间戳的兜底值。
 func newTraceID() string {
 	buf := make([]byte, 8)
 	if _, err := rand.Read(buf); err != nil {
