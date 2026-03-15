@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"io"
+	"strings"
 	"syskit/internal/cli/cpu"
 	"syskit/internal/cli/disk"
 	"syskit/internal/cli/doctor"
@@ -11,6 +13,9 @@ import (
 	"syskit/internal/cli/proc"
 	"syskit/internal/cli/report"
 	"syskit/internal/cli/snapshot"
+	"syskit/internal/config"
+	"syskit/internal/output"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -25,11 +30,33 @@ type rootFlags struct {
 }
 
 func Execute(version string) error {
-	return newRootCommand(version).Execute()
+	app := newApplication(version)
+	err := app.rootCmd.Execute()
+	if err == nil {
+		return nil
+	}
+
+	if renderErr := app.renderError(err); renderErr != nil {
+		return renderErr
+	}
+
+	return err
 }
 
-func newRootCommand(version string) *cobra.Command {
-	global := newGlobalOptions()
+type application struct {
+	rootCmd     *cobra.Command
+	global      *globalOptions
+	config      *config.Config
+	configPaths []string
+	startedAt   time.Time
+}
+
+func newApplication(version string) *application {
+	app := &application{
+		global:    newGlobalOptions(),
+		startedAt: time.Now(),
+	}
+
 	opts := &rootFlags{
 		topN:         20,
 		includeFiles: true,
@@ -44,20 +71,21 @@ func newRootCommand(version string) *cobra.Command {
 			"  syskit --format json D:\\\n" +
 			"  syskit doctor all\n" +
 			"  syskit disk scan /var/log",
-		Args:         cobra.MaximumNArgs(1),
-		SilenceUsage: true,
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return global.NormalizeAndValidate()
+			return app.initialize(cmd)
 		},
 		CompletionOptions: cobra.CompletionOptions{
 			DisableDefaultCmd: true,
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLegacyScan(cmd, args, version, opts, global)
+			return runLegacyScan(cmd, args, version, opts, app.global)
 		},
 	}
 
-	global.Bind(rootCmd)
+	app.global.Bind(rootCmd)
 
 	flags := rootCmd.Flags()
 	flags.IntVarP(&opts.topN, "top", "t", 20, "显示 Top N 结果")
@@ -80,5 +108,68 @@ func newRootCommand(version string) *cobra.Command {
 		policy.NewCommand(),
 	)
 
-	return rootCmd
+	app.rootCmd = rootCmd
+	return app
+}
+
+func (a *application) initialize(cmd *cobra.Command) error {
+	a.global.ApplyBootstrapEnv(cmd)
+	if shouldSkipConfigLoad(cmd) {
+		return a.global.NormalizeAndValidate()
+	}
+
+	loadResult, err := config.Load(config.LoadOptions{ExplicitPath: a.global.config})
+	if err != nil {
+		return err
+	}
+
+	a.config = loadResult.Config
+	a.configPaths = append([]string(nil), loadResult.Paths...)
+	a.global.ApplyConfig(cmd, loadResult.Config)
+
+	return a.global.NormalizeAndValidate()
+}
+
+func shouldSkipConfigLoad(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+
+	switch strings.ToLower(cmd.CommandPath()) {
+	case "syskit policy init", "syskit policy validate":
+		return true
+	case "syskit policy show":
+		flag := cmd.Flags().Lookup("default")
+		return flag != nil && flag.Changed && flag.Value.String() == "true"
+	default:
+		return false
+	}
+}
+
+func (a *application) renderError(err error) error {
+	format := a.global.errorFormat()
+	writer := io.Writer(a.rootCmd.ErrOrStderr())
+
+	if format == "json" || format == "markdown" {
+		writer = a.rootCmd.OutOrStdout()
+	}
+
+	if a.global.outputPath != "" && format != "csv" {
+		fileWriter := writer
+		closeWriter, outputErr := a.global.configureOutputWriter(&fileWriter)
+		if outputErr == nil {
+			defer closeWriter()
+			writer = fileWriter
+		}
+	}
+
+	if renderErr := output.RenderError(writer, format, err, a.startedAt); renderErr != nil {
+		return renderErr
+	}
+
+	if a.global.outputPath != "" && format != "csv" && !a.global.quiet {
+		_, _ = io.WriteString(a.rootCmd.ErrOrStderr(), "✓ 错误输出已写入: "+a.global.outputPath+"\n")
+	}
+
+	return nil
 }

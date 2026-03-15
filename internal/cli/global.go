@@ -5,7 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"syskit/internal/config"
 	"syskit/internal/errs"
 	"time"
 
@@ -63,14 +65,14 @@ func (o *globalOptions) NormalizeAndValidate() error {
 	switch o.format {
 	case "table", "json", "markdown", "csv":
 	default:
-		return errs.New(errs.ExitInvalidArgument, fmt.Sprintf("不支持的输出格式: %s", o.format))
+		return errs.InvalidArgument(fmt.Sprintf("不支持的输出格式: %s", o.format))
 	}
 
 	o.failOn = strings.ToLower(strings.TrimSpace(o.failOn))
 	switch o.failOn {
 	case "critical", "high", "medium", "low", "never":
 	default:
-		return errs.New(errs.ExitInvalidArgument, fmt.Sprintf("不支持的 --fail-on 值: %s", o.failOn))
+		return errs.InvalidArgument(fmt.Sprintf("不支持的 --fail-on 值: %s", o.failOn))
 	}
 
 	if o.apply {
@@ -80,18 +82,80 @@ func (o *globalOptions) NormalizeAndValidate() error {
 	return nil
 }
 
+func (o *globalOptions) ApplyBootstrapEnv(cmd *cobra.Command) {
+	if !flagChanged(cmd, "config") {
+		if value := strings.TrimSpace(os.Getenv("SYSKIT_CONFIG")); value != "" {
+			o.config = value
+		}
+	}
+
+	if !flagChanged(cmd, "policy") {
+		if value := strings.TrimSpace(os.Getenv("SYSKIT_POLICY")); value != "" {
+			o.policy = value
+		}
+	}
+
+	if !flagChanged(cmd, "format") && !flagChanged(cmd, "json") {
+		if value := strings.TrimSpace(os.Getenv("SYSKIT_OUTPUT")); value != "" {
+			o.format = value
+		}
+	}
+
+	if !flagChanged(cmd, "no-color") {
+		if value, ok := parseBoolEnv("SYSKIT_NO_COLOR"); ok {
+			o.noColor = value
+		}
+	}
+}
+
+func (o *globalOptions) ApplyConfig(cmd *cobra.Command, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+
+	if !flagChanged(cmd, "format") && !flagChanged(cmd, "json") {
+		o.format = cfg.Output.Format
+	}
+
+	if !flagChanged(cmd, "no-color") {
+		o.noColor = cfg.Output.NoColor
+	}
+
+	if !flagChanged(cmd, "quiet") {
+		o.quiet = cfg.Output.Quiet
+	}
+
+	if !flagChanged(cmd, "dry-run") && !flagChanged(cmd, "apply") {
+		o.dryRun = cfg.Risk.DryRunDefault
+	}
+}
+
+func (o *globalOptions) errorFormat() string {
+	if o.json {
+		return "json"
+	}
+
+	format := strings.ToLower(strings.TrimSpace(o.format))
+	switch format {
+	case "table", "json", "markdown", "csv":
+		return format
+	default:
+		return "table"
+	}
+}
+
 func (o *globalOptions) configureOutputWriter(out *io.Writer) (func(), error) {
 	if o.outputPath == "" || o.format == "csv" {
 		return nil, nil
 	}
 
 	if err := os.MkdirAll(filepath.Dir(o.outputPath), 0o755); err != nil && filepath.Dir(o.outputPath) != "." {
-		return nil, errs.Wrap(errs.ExitExecutionFailed, err, "创建输出目录失败")
+		return nil, errs.ExecutionFailed("创建输出目录失败", err)
 	}
 
 	file, err := os.Create(o.outputPath)
 	if err != nil {
-		return nil, errs.Wrap(errs.ExitExecutionFailed, err, "创建输出文件失败")
+		return nil, errs.ExecutionFailed("创建输出文件失败", err)
 	}
 
 	*out = file
@@ -115,4 +179,30 @@ func (o *globalOptions) csvPrefix(fallback string) string {
 	}
 
 	return strings.TrimSuffix(o.outputPath, ext)
+}
+
+func flagChanged(cmd *cobra.Command, name string) bool {
+	if cmd == nil {
+		return false
+	}
+
+	flag := cmd.Flags().Lookup(name)
+	if flag == nil {
+		flag = cmd.InheritedFlags().Lookup(name)
+	}
+	return flag != nil && flag.Changed
+}
+
+func parseBoolEnv(name string) (bool, bool) {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return false, false
+	}
+
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, false
+	}
+
+	return parsed, true
 }
