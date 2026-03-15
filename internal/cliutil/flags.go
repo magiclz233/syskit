@@ -1,3 +1,4 @@
+// Package cliutil 放置多个命令都会复用的 CLI 小工具。
 package cliutil
 
 import (
@@ -6,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ResolveStringFlag 统一读取命令或继承自根命令的字符串 flag。
+// 这样子命令不需要关心 flag 是定义在自己身上还是定义在 root persistent flags 上。
 func ResolveStringFlag(cmd *cobra.Command, name string) string {
 	if cmd == nil {
 		return ""
@@ -22,6 +25,7 @@ func ResolveStringFlag(cmd *cobra.Command, name string) string {
 	return strings.TrimSpace(flag.Value.String())
 }
 
+// ResolveBoolFlag 统一读取布尔型 flag。
 func ResolveBoolFlag(cmd *cobra.Command, name string) bool {
 	if cmd == nil {
 		return false
@@ -38,6 +42,8 @@ func ResolveBoolFlag(cmd *cobra.Command, name string) bool {
 	return flag.Value.String() == "true"
 }
 
+// ResolveFormat 根据 --json 和 --format 计算最终输出格式。
+// 这里保持和 root 命令的优先级一致：--json 始终覆盖 --format。
 func ResolveFormat(cmd *cobra.Command) string {
 	if ResolveBoolFlag(cmd, "json") {
 		return "json"
@@ -51,6 +57,8 @@ func ResolveFormat(cmd *cobra.Command) string {
 	return format
 }
 
+// SplitCSV 把逗号分隔的字符串拆成去空白、去空值后的切片。
+// 常用于处理 --exclude 这类用户输入。
 func SplitCSV(raw string) []string {
 	if strings.TrimSpace(raw) == "" {
 		return nil

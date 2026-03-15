@@ -1,3 +1,5 @@
+// Package cliutil 中的扫描执行器用于复用目录扫描命令的公共流程。
+// 目前根命令兼容扫描和 `disk scan` 都走这里，避免两个入口各自维护一套输出逻辑。
 package cliutil
 
 import (
@@ -12,26 +14,47 @@ import (
 	"time"
 )
 
+// ScanRunOptions 描述一次扫描任务本身的业务参数。
 type ScanRunOptions struct {
-	Path         string
-	Version      string
-	Title        string
-	TopN         int
+	// Path 是扫描根路径。
+	Path string
+	// Version 只在交互式 table 输出时展示给用户。
+	Version string
+	// Title 用于交互式横幅标题。
+	Title string
+	// TopN 决定最大文件和目录结果保留多少条。
+	TopN int
+	// IncludeFiles 控制是否输出文件结果。
 	IncludeFiles bool
-	IncludeDirs  bool
-	ExcludeDirs  []string
-	ExportCSV    string
+	// IncludeDirs 控制是否输出目录结果。
+	IncludeDirs bool
+	// ExcludeDirs 是按目录名匹配的排除列表。
+	ExcludeDirs []string
+	// ExportCSV 指定 CSV 导出的前缀。
+	ExportCSV string
+	// MinSizeBytes 用于过滤小于阈值的文件和目录。
 	MinSizeBytes int64
-	MaxDepth     int
-	ShowBanner   bool
+	// MaxDepth 限制扫描深度；0 表示不限制。
+	MaxDepth int
+	// ShowBanner 控制是否输出交互式横幅。
+	ShowBanner bool
 }
 
+// ScanOutputOptions 描述输出层参数。
 type ScanOutputOptions struct {
-	Format     string
+	// Format 是最终输出格式。
+	Format string
+	// OutputPath 是结构化输出文件路径；CSV 例外，由 ExportCSV 处理。
 	OutputPath string
-	Quiet      bool
+	// Quiet 为 true 时不输出额外提示行。
+	Quiet bool
 }
 
+// RunScan 负责执行完整扫描流程：
+// 1. 根据输出模式决定是否显示交互式横幅；
+// 2. 构造 scanner 选项并执行扫描；
+// 3. 使用统一结果模型和 presenter 输出结果；
+// 4. 必要时额外导出 CSV 文件。
 func RunScan(consoleOut io.Writer, resultOut io.Writer, runOpts ScanRunOptions, outputOpts ScanOutputOptions) error {
 	startedAt := time.Now()
 	interactiveTable := outputOpts.Format == "table" && outputOpts.OutputPath == "" && !outputOpts.Quiet
@@ -98,6 +121,8 @@ func RunScan(consoleOut io.Writer, resultOut io.Writer, runOpts ScanRunOptions, 
 	return nil
 }
 
+// ConfigureOutputWriter 在非 CSV 模式下把输出重定向到文件。
+// 返回的关闭函数由调用方负责 defer 执行。
 func ConfigureOutputWriter(format string, outputPath string, out *io.Writer) (func(), error) {
 	if outputPath == "" || format == "csv" {
 		return nil, nil
@@ -121,6 +146,8 @@ func ConfigureOutputWriter(format string, outputPath string, out *io.Writer) (fu
 	}, nil
 }
 
+// csvPrefix 计算 CSV 导出时的文件名前缀。
+// 优先使用命令显式传入的 fallback，其次从结构化输出路径中推导。
 func csvPrefix(outputPath string, fallback string) string {
 	if fallback != "" {
 		return fallback
