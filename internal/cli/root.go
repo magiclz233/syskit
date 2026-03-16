@@ -15,6 +15,7 @@ import (
 	"syskit/internal/cli/report"
 	"syskit/internal/cli/snapshot"
 	"syskit/internal/config"
+	"syskit/internal/errs"
 	"syskit/internal/output"
 	"time"
 
@@ -40,12 +41,22 @@ func Execute(version string) error {
 	if err == nil {
 		return nil
 	}
+	if shouldSuppressErrorRender(err) {
+		return err
+	}
 
 	if renderErr := app.renderError(err); renderErr != nil {
 		return renderErr
 	}
 
 	return err
+}
+
+// shouldSuppressErrorRender 用于避免“业务成功输出后又被当作错误再渲染一遍”。
+// doctor 会通过特定退出码表达 warning/fail-on 语义，此时只需要保留退出码。
+func shouldSuppressErrorRender(err error) bool {
+	code := errs.Code(err)
+	return code == errs.ExitWarning || code == errs.ExitFailOnMatched
 }
 
 // application 把 root command、本次启动时刻以及已加载配置聚合在一起，
