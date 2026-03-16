@@ -88,16 +88,16 @@
 | 8 | `P0-008` | `已开发` | 实现 `disk` 总览命令 | 输出分区、空间、使用率等 P0 基础信息 |
 | 9 | `P0-009` | `已开发` | 实现 `proc` 命令集 | 完成 `proc top`、`proc tree`、`proc info`、`proc kill` |
 | 10 | `P0-010` | `已开发` | 实现 `port` 命令集 | 完成 `port <port>`、`port list`、`port kill <port>` |
-| 11 | `P0-011` | `待开发` | 实现 `cpu` 命令 | 完成 `cpu` 总览和高 CPU 进程概览 |
-| 12 | `P0-012` | `待开发` | 实现 `mem` 命令集 | 完成 `mem` 总览和 `mem top` |
-| 13 | `P0-013` | `待开发` | 实现 `fix cleanup` | 支持 dry-run、`--apply`、基础清理计划、执行和校验流程 |
+| 11 | `P0-011` | `已开发` | 实现 `cpu` 命令 | 完成 `cpu` 总览和高 CPU 进程概览 |
+| 12 | `P0-012` | `已开发` | 实现 `mem` 命令集 | 完成 `mem` 总览和 `mem top` |
+| 13 | `P0-013` | `已开发` | 实现 `fix cleanup` | 支持 dry-run、`--apply`、基础清理计划、执行和校验流程 |
 
 ### 阶段 C：诊断与规则闭环
 
 | 顺序 | ID | 状态 | 需求项 | 关键交付 |
 |---|---|---|---|---|
-| 14 | `P0-014` | `待开发` | 建立规则模型与规则引擎 | 落地 `Issue`、`SkippedModule`、规则执行接口、模块级降级处理 |
-| 15 | `P0-015` | `待开发` | 实现 P0 评分与 `--fail-on` 逻辑 | 完成健康分、健康等级、覆盖率、CI 阻断阈值计算 |
+| 14 | `P0-014` | `已开发` | 建立规则模型与规则引擎 | 落地 `Issue`、`SkippedModule`、规则执行接口、模块级降级处理 |
+| 15 | `P0-015` | `已开发` | 实现 P0 评分与 `--fail-on` 逻辑 | 完成健康分、健康等级、覆盖率、CI 阻断阈值计算 |
 | 16 | `P0-016` | `待开发` | 实现 P0 规则集 | 至少落地 `PORT-001`、`PORT-002`、`PROC-001`、`PROC-002`、`CPU-001`、`MEM-001`、`DISK-001`、`DISK-002`、`FILE-001`、`ENV-001` |
 | 17 | `P0-017` | `待开发` | 实现专项诊断命令 | 完成 `doctor port`、`doctor cpu`、`doctor mem`、`doctor disk` |
 | 18 | `P0-018` | `待开发` | 实现 `doctor all` | 完成模块编排、并发采集、跳过项、问题清单、统一输出与退出码 |
@@ -154,6 +154,11 @@
 - 2026-03-16: `P0-008` 已开发，完成 `disk` 总览命令，支持分区容量/使用率输出、`--detail` 详细字段以及 table/json/markdown/csv 渲染。
 - 2026-03-16: `P0-009` 已开发，完成 `proc top/tree/info/kill` 命令、dry-run 与 `--apply --yes` 执行门禁、跨平台进程采集封装与基础测试。
 - 2026-03-16: `P0-010` 已开发，完成 `port` 查询表达式解析、`port list` 监听列表、`port kill` dry-run/apply 流程与 `--force --kill-tree` 参数接入，并补齐基础测试。
+- 2026-03-16: `P0-011` 已开发，完成 `cpu` 总览与高 CPU 进程概览、`--detail` 每核心输出、以及在平台不支持/权限受限场景下的可解释降级提示。
+- 2026-03-16: `P0-012` 已开发，完成 `mem` 总览与 `mem top`，支持 `--detail`、`--top`、`--by <rss/vms/swap>`、`--user`、`--name`，并补充 swap 指标不可用时的降级提示。
+- 2026-03-16: `P0-013` 已开发，完成 `fix cleanup` 的 dry-run/apply 流程、`--target/--older-than` 参数、discover-plan-apply-verify 清理链路以及 table/json/markdown/csv 输出。
+- 2026-03-16: `P0-014` 已开发，完成 `Issue`/`SkippedModule` 领域模型、规则执行接口与默认规则引擎、模块级降级归类（permission_denied/timeout/unsupported）及对应单元测试。
+- 2026-03-16: `P0-015` 已开发，完成默认评分器（severity/confidence/scope 权重扣分）、健康等级映射、`--fail-on` 阈值匹配与 doctor 场景退出码计算，并补齐单元测试。
 - 2026-03-14: 目录结构已迁移为 `cmd/<binary> + internal/cli`，并同步更新构建脚本、发布脚本和架构文档。
 
 ## 9. 已确认事项
