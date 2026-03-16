@@ -2,7 +2,6 @@
 package proc
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -149,7 +148,7 @@ func runTop(cmd *cobra.Command, opts *topOptions) error {
 		return errs.InvalidArgument("--top 必须大于 0")
 	}
 
-	ctx, cancel, err := commandContext(cmd)
+	ctx, cancel, err := cliutil.CommandContext(cmd)
 	if err != nil {
 		return err
 	}
@@ -177,7 +176,7 @@ func runTree(cmd *cobra.Command, args []string, opts *treeOptions) error {
 		return err
 	}
 
-	ctx, cancel, err := commandContext(cmd)
+	ctx, cancel, err := cliutil.CommandContext(cmd)
 	if err != nil {
 		return err
 	}
@@ -203,7 +202,7 @@ func runInfo(cmd *cobra.Command, pidRaw string, opts *infoOptions) error {
 		return err
 	}
 
-	ctx, cancel, err := commandContext(cmd)
+	ctx, cancel, err := cliutil.CommandContext(cmd)
 	if err != nil {
 		return err
 	}
@@ -225,7 +224,7 @@ func runKill(cmd *cobra.Command, pidRaw string, opts *killOptions) error {
 		return err
 	}
 
-	ctx, cancel, err := commandContext(cmd)
+	ctx, cancel, err := cliutil.CommandContext(cmd)
 	if err != nil {
 		return err
 	}
@@ -294,23 +293,4 @@ func optionalPID(args []string) (*int32, error) {
 		return nil, err
 	}
 	return &pid, nil
-}
-
-func commandContext(cmd *cobra.Command) (context.Context, context.CancelFunc, error) {
-	rawTimeout := strings.TrimSpace(cliutil.ResolveStringFlag(cmd, "timeout"))
-	if rawTimeout == "" || rawTimeout == "0" || rawTimeout == "0s" {
-		ctx, cancel := context.WithCancel(context.Background())
-		return ctx, cancel, nil
-	}
-
-	timeout, err := time.ParseDuration(rawTimeout)
-	if err != nil {
-		return nil, nil, errs.InvalidArgument(fmt.Sprintf("无效的 --timeout: %s", rawTimeout))
-	}
-	if timeout <= 0 {
-		ctx, cancel := context.WithCancel(context.Background())
-		return ctx, cancel, nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	return ctx, cancel, nil
 }
