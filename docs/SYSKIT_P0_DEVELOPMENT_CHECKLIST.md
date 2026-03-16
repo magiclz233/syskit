@@ -98,7 +98,7 @@
 |---|---|---|---|---|
 | 14 | `P0-014` | `已开发` | 建立规则模型与规则引擎 | 落地 `Issue`、`SkippedModule`、规则执行接口、模块级降级处理 |
 | 15 | `P0-015` | `已开发` | 实现 P0 评分与 `--fail-on` 逻辑 | 完成健康分、健康等级、覆盖率、CI 阻断阈值计算 |
-| 16 | `P0-016` | `待开发` | 实现 P0 规则集 | 至少落地 `PORT-001`、`PORT-002`、`PROC-001`、`PROC-002`、`CPU-001`、`MEM-001`、`DISK-001`、`DISK-002`、`FILE-001`、`ENV-001` |
+| 16 | `P0-016` | `已开发` | 实现 P0 规则集 | 至少落地 `PORT-001`、`PORT-002`、`PROC-001`、`PROC-002`、`CPU-001`、`MEM-001`、`DISK-001`、`DISK-002`、`FILE-001`、`ENV-001` |
 | 17 | `P0-017` | `待开发` | 实现专项诊断命令 | 完成 `doctor port`、`doctor cpu`、`doctor mem`、`doctor disk` |
 | 18 | `P0-018` | `待开发` | 实现 `doctor all` | 完成模块编排、并发采集、跳过项、问题清单、统一输出与退出码 |
 
@@ -159,6 +159,7 @@
 - 2026-03-16: `P0-013` 已开发，完成 `fix cleanup` 的 dry-run/apply 流程、`--target/--older-than` 参数、discover-plan-apply-verify 清理链路以及 table/json/markdown/csv 输出。
 - 2026-03-16: `P0-014` 已开发，完成 `Issue`/`SkippedModule` 领域模型、规则执行接口与默认规则引擎、模块级降级归类（permission_denied/timeout/unsupported）及对应单元测试。
 - 2026-03-16: `P0-015` 已开发，完成默认评分器（severity/confidence/scope 权重扣分）、健康等级映射、`--fail-on` 阈值匹配与 doctor 场景退出码计算，并补齐单元测试。
+- 2026-03-16: `P0-016` 已开发，完成 `PORT-001/002`、`PROC-001/002`、`CPU-001`、`MEM-001`、`DISK-001/002`、`FILE-001`、`ENV-001` 十条 P0 规则实现，补齐规则输入模型与规则集单元测试。
 - 2026-03-14: 目录结构已迁移为 `cmd/<binary> + internal/cli`，并同步更新构建脚本、发布脚本和架构文档。
 
 ## 9. 已确认事项

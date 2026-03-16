@@ -18,9 +18,11 @@ const (
 // DiagnoseInput 是规则执行时共享的输入载体。
 // P0 先提供最小通用字段，后续专项诊断可在不破坏协议的前提下增量扩展。
 type DiagnoseInput struct {
-	Mode       string         `json:"mode,omitempty"`
-	ModuleData map[string]any `json:"module_data,omitempty"`
-	Skipped    []model.SkippedModule
+	Mode       string                `json:"mode,omitempty"`
+	Snapshots  DiagnoseSnapshots     `json:"snapshots,omitempty"`
+	Options    DiagnoseOptions       `json:"options,omitempty"`
+	ModuleData map[string]any        `json:"module_data,omitempty"`
+	Skipped    []model.SkippedModule `json:"skipped,omitempty"`
 }
 
 // Rule 是单条诊断规则的执行接口。
