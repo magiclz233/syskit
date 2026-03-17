@@ -41,6 +41,9 @@ func Validate(cfg *Config) error {
 	if cfg.Logging.MaxBackups < 0 {
 		return errs.ConfigInvalid("配置项 logging.max_backups 不能小于 0", nil)
 	}
+	if strings.TrimSpace(cfg.Storage.DataDir) == "" {
+		return errs.ConfigInvalid("配置项 storage.data_dir 不能为空", nil)
+	}
 	if cfg.Storage.RetentionDays < 0 {
 		return errs.ConfigInvalid("配置项 storage.retention_days 不能小于 0", nil)
 	}
