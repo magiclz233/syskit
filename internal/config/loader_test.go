@@ -94,6 +94,26 @@ output:
 	}
 }
 
+// TestLoadRejectsEmptyDataDir 验证 data_dir 为空时会返回配置错误。
+func TestLoadRejectsEmptyDataDir(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	writeTestFile(t, configPath, `
+storage:
+  data_dir: ""
+`)
+
+	_, err := Load(LoadOptions{ExplicitPath: configPath})
+	if err == nil {
+		t.Fatal("Load() error = nil, want config invalid error")
+	}
+	if got := errs.ErrorCode(err); got != errs.CodeConfigInvalid {
+		t.Fatalf("errs.ErrorCode(err) = %q, want %q", got, errs.CodeConfigInvalid)
+	}
+	if !strings.Contains(errs.Message(err), "storage.data_dir") {
+		t.Fatalf("errs.Message(err) = %q, want field name", errs.Message(err))
+	}
+}
+
 // writeTestFile 是测试辅助函数，用于快速落测试配置文件。
 func writeTestFile(t *testing.T, path string, content string) {
 	t.Helper()

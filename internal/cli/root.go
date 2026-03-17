@@ -17,6 +17,7 @@ import (
 	"syskit/internal/config"
 	"syskit/internal/errs"
 	"syskit/internal/output"
+	"syskit/internal/storage"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -151,6 +152,14 @@ func (a *application) initialize(cmd *cobra.Command) error {
 	a.config = loadResult.Config
 	a.configPaths = append([]string(nil), loadResult.Paths...)
 	a.global.ApplyConfig(cmd, loadResult.Config)
+
+	if _, err := storage.Bootstrap(storage.BootstrapOptions{
+		DataDir:       loadResult.Config.Storage.DataDir,
+		RetentionDays: loadResult.Config.Storage.RetentionDays,
+		MaxStorageMB:  loadResult.Config.Storage.MaxStorageMB,
+	}); err != nil {
+		return err
+	}
 
 	return a.global.NormalizeAndValidate()
 }
