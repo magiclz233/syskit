@@ -82,3 +82,63 @@ func TestResolveDoctorExitCode(t *testing.T) {
 		t.Fatalf("fail-on matched exit code want=%d got=%d", errs.ExitFailOnMatched, got)
 	}
 }
+
+func TestLevelBoundaries(t *testing.T) {
+	scorer := NewScorer()
+	tests := []struct {
+		name   string
+		issues []model.Issue
+		level  string
+	}{
+		{
+			name:   "healthy boundary score 90",
+			issues: []model.Issue{{Severity: model.SeverityHigh, Confidence: 100, Scope: model.ScopeLocal}},
+			level:  "healthy",
+		},
+		{
+			name: "degraded score 89",
+			issues: []model.Issue{
+				{Severity: model.SeverityHigh, Confidence: 100, Scope: model.ScopeLocal},
+				{Severity: model.SeverityLow, Confidence: 50, Scope: model.ScopeLocal},
+			},
+			level: "degraded",
+		},
+		{
+			name: "warning boundary score 60",
+			issues: []model.Issue{
+				{Severity: model.SeverityCritical, Confidence: 100, Scope: model.ScopeLocal},
+				{Severity: model.SeverityCritical, Confidence: 100, Scope: model.ScopeLocal},
+			},
+			level: "warning",
+		},
+		{
+			name: "critical score below 60",
+			issues: []model.Issue{
+				{Severity: model.SeverityCritical, Confidence: 100, Scope: model.ScopeLocal},
+				{Severity: model.SeverityCritical, Confidence: 100, Scope: model.ScopeLocal},
+				{Severity: model.SeverityLow, Confidence: 100, Scope: model.ScopeLocal},
+			},
+			level: "critical",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			_, level := scorer.Score(tc.issues, 100)
+			if level != tc.level {
+				t.Fatalf("level want=%s got=%s", tc.level, level)
+			}
+		})
+	}
+}
+
+func TestIsFailOnMatchedInvalidValueFallsBackToHigh(t *testing.T) {
+	issues := []model.Issue{
+		{Severity: model.SeverityMedium},
+		{Severity: model.SeverityHigh},
+	}
+	if !IsFailOnMatched(issues, "bad-threshold") {
+		t.Fatal("invalid fail-on should fallback to high and be matched by high issue")
+	}
+}
