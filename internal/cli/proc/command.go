@@ -2,11 +2,14 @@
 package proc
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
+	"syskit/internal/audit"
 	"syskit/internal/cliutil"
 	proccollector "syskit/internal/collectors/proc"
+	"syskit/internal/config"
 	"syskit/internal/errs"
 	"syskit/internal/output"
 	"time"
@@ -253,6 +256,26 @@ func runKill(cmd *cobra.Command, pidRaw string, opts *killOptions) error {
 
 	execResult, err := proccollector.ExecuteKillPlan(ctx, plan)
 	if err != nil {
+		auditErr := writeAuditEvent(cmd, ctx, audit.Event{
+			Command:    cmd.CommandPath(),
+			Action:     "proc.kill",
+			Target:     fmt.Sprintf("pid:%d", pid),
+			Before:     plan,
+			Result:     "failed",
+			ErrorMsg:   errs.Message(err),
+			DurationMs: time.Since(startedAt).Milliseconds(),
+			Metadata: map[string]any{
+				"apply": true,
+				"force": opts.force,
+				"tree":  opts.tree,
+			},
+		})
+		if auditErr != nil {
+			return errs.ExecutionFailed(
+				fmt.Sprintf("proc kill 执行失败且审计写入失败: %s", errs.Message(err)),
+				auditErr,
+			)
+		}
 		return err
 	}
 
@@ -266,6 +289,23 @@ func runKill(cmd *cobra.Command, pidRaw string, opts *killOptions) error {
 	msg := "进程终止执行完成"
 	if failed := proccollector.CountKillFailures(execResult); failed > 0 {
 		msg = fmt.Sprintf("进程终止执行完成（%d 个目标失败）", failed)
+	}
+	if err := writeAuditEvent(cmd, ctx, audit.Event{
+		Command:    cmd.CommandPath(),
+		Action:     "proc.kill",
+		Target:     fmt.Sprintf("pid:%d", pid),
+		Before:     plan,
+		After:      execResult,
+		Result:     "success",
+		DurationMs: time.Since(startedAt).Milliseconds(),
+		Metadata: map[string]any{
+			"apply":    true,
+			"force":    opts.force,
+			"tree":     opts.tree,
+			"verified": execResult.Verified,
+		},
+	}); err != nil {
+		return err
 	}
 
 	result := output.NewSuccessResult(msg, data, startedAt)
@@ -293,4 +333,26 @@ func optionalPID(args []string) (*int32, error) {
 		return nil, err
 	}
 	return &pid, nil
+}
+
+func loadRuntimeConfig(cmd *cobra.Command) (*config.Config, error) {
+	loadResult, err := config.Load(config.LoadOptions{
+		ExplicitPath: strings.TrimSpace(cliutil.ResolveStringFlag(cmd, "config")),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return loadResult.Config, nil
+}
+
+func writeAuditEvent(cmd *cobra.Command, ctx context.Context, event audit.Event) error {
+	cfg, err := loadRuntimeConfig(cmd)
+	if err != nil {
+		return err
+	}
+	logger, err := audit.NewLogger(cfg.Storage.DataDir)
+	if err != nil {
+		return err
+	}
+	return logger.Log(ctx, event)
 }

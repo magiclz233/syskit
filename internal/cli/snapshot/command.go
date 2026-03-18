@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syskit/internal/audit"
 	"syskit/internal/cliutil"
 	cpucollector "syskit/internal/collectors/cpu"
 	diskcollector "syskit/internal/collectors/disk"
@@ -452,6 +453,24 @@ func runDelete(cmd *cobra.Command, id string, _ *deleteOptions) error {
 
 	deleted, err := store.Delete(ctx, id)
 	if err != nil {
+		auditErr := writeAuditEvent(cmd, ctx, audit.Event{
+			Command:    cmd.CommandPath(),
+			Action:     "snapshot.delete",
+			Target:     fmt.Sprintf("snapshot:%s", id),
+			Before:     summary,
+			Result:     "failed",
+			ErrorMsg:   errs.Message(err),
+			DurationMs: time.Since(startedAt).Milliseconds(),
+			Metadata: map[string]any{
+				"apply": true,
+			},
+		})
+		if auditErr != nil {
+			return errs.ExecutionFailed(
+				fmt.Sprintf("snapshot delete 执行失败且审计写入失败: %s", errs.Message(err)),
+				auditErr,
+			)
+		}
 		return err
 	}
 	data := &deleteOutputData{
@@ -459,6 +478,20 @@ func runDelete(cmd *cobra.Command, id string, _ *deleteOptions) error {
 		Apply:    true,
 		Deleted:  true,
 		Snapshot: deleted,
+	}
+	if err := writeAuditEvent(cmd, ctx, audit.Event{
+		Command:    cmd.CommandPath(),
+		Action:     "snapshot.delete",
+		Target:     fmt.Sprintf("snapshot:%s", deleted.ID),
+		Before:     summary,
+		After:      deleted,
+		Result:     "success",
+		DurationMs: time.Since(startedAt).Milliseconds(),
+		Metadata: map[string]any{
+			"apply": true,
+		},
+	}); err != nil {
+		return err
 	}
 	result := output.NewSuccessResult(fmt.Sprintf("快照删除完成（id=%s）", deleted.ID), data, startedAt)
 	return cliutil.RenderCommandResult(cmd, result, newDeletePresenter(data))
@@ -702,4 +735,16 @@ func loadRuntimeConfig(cmd *cobra.Command) (*config.Config, error) {
 		return nil, err
 	}
 	return loadResult.Config, nil
+}
+
+func writeAuditEvent(cmd *cobra.Command, ctx context.Context, event audit.Event) error {
+	cfg, err := loadRuntimeConfig(cmd)
+	if err != nil {
+		return err
+	}
+	logger, err := audit.NewLogger(cfg.Storage.DataDir)
+	if err != nil {
+		return err
+	}
+	return logger.Log(ctx, event)
 }

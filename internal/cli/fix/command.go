@@ -2,11 +2,14 @@
 package fix
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"syskit/internal/audit"
 	"syskit/internal/cliutil"
 	cleanupcollector "syskit/internal/collectors/cleanup"
 	"syskit/internal/config"
+	"syskit/internal/errs"
 	"syskit/internal/output"
 	"time"
 
@@ -110,6 +113,25 @@ func runCleanup(cmd *cobra.Command, opts *cleanupOptions) error {
 
 	execResult, err := cleanupcollector.ApplyPlan(ctx, plan)
 	if err != nil {
+		auditErr := writeAuditEvent(cmd, ctx, audit.Event{
+			Command:    cmd.CommandPath(),
+			Action:     "fix.cleanup",
+			Target:     strings.Join(targetNames(targets), ","),
+			Before:     plan,
+			Result:     "failed",
+			ErrorMsg:   errs.Message(err),
+			DurationMs: time.Since(startedAt).Milliseconds(),
+			Metadata: map[string]any{
+				"apply":      true,
+				"older_than": opts.olderThan,
+			},
+		})
+		if auditErr != nil {
+			return errs.ExecutionFailed(
+				fmt.Sprintf("fix cleanup 执行失败且审计写入失败: %s", errs.Message(err)),
+				auditErr,
+			)
+		}
 		return err
 	}
 	data := &cleanupOutputData{
@@ -123,6 +145,23 @@ func runCleanup(cmd *cobra.Command, opts *cleanupOptions) error {
 	if execResult.RemainingCount > 0 || len(execResult.Failed) > 0 {
 		msg = fmt.Sprintf("清理执行完成（删除 %d 项，失败 %d 项，剩余 %d 项）", execResult.DeletedCount, len(execResult.Failed), execResult.RemainingCount)
 	}
+	if err := writeAuditEvent(cmd, ctx, audit.Event{
+		Command:    cmd.CommandPath(),
+		Action:     "fix.cleanup",
+		Target:     strings.Join(targetNames(targets), ","),
+		Before:     plan,
+		After:      execResult,
+		Result:     "success",
+		DurationMs: time.Since(startedAt).Milliseconds(),
+		Metadata: map[string]any{
+			"apply":           true,
+			"older_than":      opts.olderThan,
+			"deleted_count":   execResult.DeletedCount,
+			"remaining_count": execResult.RemainingCount,
+		},
+	}); err != nil {
+		return err
+	}
 	result := output.NewSuccessResult(msg, data, startedAt)
 	return cliutil.RenderCommandResult(cmd, result, newCleanupPresenter(data))
 }
@@ -135,4 +174,24 @@ func loadRuntimeConfig(cmd *cobra.Command) (*config.Config, error) {
 		return nil, err
 	}
 	return loadResult.Config, nil
+}
+
+func writeAuditEvent(cmd *cobra.Command, ctx context.Context, event audit.Event) error {
+	cfg, err := loadRuntimeConfig(cmd)
+	if err != nil {
+		return err
+	}
+	logger, err := audit.NewLogger(cfg.Storage.DataDir)
+	if err != nil {
+		return err
+	}
+	return logger.Log(ctx, event)
+}
+
+func targetNames(targets []cleanupcollector.Target) []string {
+	result := make([]string, 0, len(targets))
+	for _, target := range targets {
+		result = append(result, string(target))
+	}
+	return result
 }

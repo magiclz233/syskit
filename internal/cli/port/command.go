@@ -2,11 +2,14 @@
 package port
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
+	"syskit/internal/audit"
 	"syskit/internal/cliutil"
 	portcollector "syskit/internal/collectors/port"
+	"syskit/internal/config"
 	"syskit/internal/errs"
 	"syskit/internal/output"
 	"time"
@@ -197,6 +200,26 @@ func runKill(cmd *cobra.Command, portRaw string, opts *killOptions) error {
 
 	execResult, err := portcollector.ExecuteKillPlan(ctx, plan)
 	if err != nil {
+		auditErr := writeAuditEvent(cmd, ctx, audit.Event{
+			Command:    cmd.CommandPath(),
+			Action:     "port.kill",
+			Target:     fmt.Sprintf("port:%d", port),
+			Before:     plan,
+			Result:     "failed",
+			ErrorMsg:   errs.Message(err),
+			DurationMs: time.Since(startedAt).Milliseconds(),
+			Metadata: map[string]any{
+				"apply":     true,
+				"force":     opts.force,
+				"kill_tree": opts.killTree,
+			},
+		})
+		if auditErr != nil {
+			return errs.ExecutionFailed(
+				fmt.Sprintf("port kill 执行失败且审计写入失败: %s", errs.Message(err)),
+				auditErr,
+			)
+		}
 		return err
 	}
 	data := &killOutputData{
@@ -209,6 +232,23 @@ func runKill(cmd *cobra.Command, portRaw string, opts *killOptions) error {
 	msg := fmt.Sprintf("端口 %d 释放执行完成", port)
 	if !execResult.Released {
 		msg = fmt.Sprintf("端口 %d 释放执行完成，但仍存在占用", port)
+	}
+	if err := writeAuditEvent(cmd, ctx, audit.Event{
+		Command:    cmd.CommandPath(),
+		Action:     "port.kill",
+		Target:     fmt.Sprintf("port:%d", port),
+		Before:     plan,
+		After:      execResult,
+		Result:     "success",
+		DurationMs: time.Since(startedAt).Milliseconds(),
+		Metadata: map[string]any{
+			"apply":     true,
+			"force":     opts.force,
+			"kill_tree": opts.killTree,
+			"released":  execResult.Released,
+		},
+	}); err != nil {
+		return err
 	}
 
 	result := output.NewSuccessResult(msg, data, startedAt)
@@ -225,4 +265,26 @@ func parseSinglePort(raw string) (int, error) {
 		return 0, errs.InvalidArgument(fmt.Sprintf("无效端口: %s", raw))
 	}
 	return value, nil
+}
+
+func loadRuntimeConfig(cmd *cobra.Command) (*config.Config, error) {
+	loadResult, err := config.Load(config.LoadOptions{
+		ExplicitPath: strings.TrimSpace(cliutil.ResolveStringFlag(cmd, "config")),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return loadResult.Config, nil
+}
+
+func writeAuditEvent(cmd *cobra.Command, ctx context.Context, event audit.Event) error {
+	cfg, err := loadRuntimeConfig(cmd)
+	if err != nil {
+		return err
+	}
+	logger, err := audit.NewLogger(cfg.Storage.DataDir)
+	if err != nil {
+		return err
+	}
+	return logger.Log(ctx, event)
 }
