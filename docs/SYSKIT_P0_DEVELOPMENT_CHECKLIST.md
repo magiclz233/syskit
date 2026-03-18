@@ -109,8 +109,8 @@
 | 19 | `P0-019` | `已开发` | 实现存储目录与保留策略基线 | 建立快照、报告、审计数据目录与基础清理策略 |
 | 20 | `P0-020` | `已开发` | 实现 `snapshot` 命令集 | 完成 `create`、`list`、`show`、`diff`、`delete` |
 | 21 | `P0-021` | `已开发` | 实现 `report generate` | 支持 `health/inspection/monitor` 中 P0 实际可生成的报告类型与导出 |
-| 22 | `P0-022` | `待开发` | 实现真实写操作审计日志 | `port kill`、`proc kill`、`fix cleanup`、`snapshot delete` 等写操作记录审计 |
-| 23 | `P0-023` | `待开发` | 实现权限不足/超时/平台不支持的统一降级 | 所有 P0 命令对 `permission_denied`、`timeout`、`unsupported` 具备可解释的降级输出，`doctor` 输出 `skipped` 与 `coverage` |
+| 22 | `P0-022` | `已开发` | 实现真实写操作审计日志 | `port kill`、`proc kill`、`fix cleanup`、`snapshot delete` 等写操作记录审计 |
+| 23 | `P0-023` | `已开发` | 实现权限不足/超时/平台不支持的统一降级 | 所有 P0 命令对 `permission_denied`、`timeout`、`unsupported` 具备可解释的降级输出，`doctor` 输出 `skipped` 与 `coverage` |
 
 ### 阶段 E：质量、契约与发布基线
 
@@ -165,6 +165,8 @@
 - 2026-03-17: `P0-019` 已开发，新增 `internal/storage` 基线能力：自动创建 `snapshots/monitor/reports/audit` 数据目录，接入 `retention_days + max_storage_mb` 保留策略与独占锁清理，并在 CLI 初始化阶段统一执行。
 - 2026-03-18: `P0-020` 已开发，完成 `snapshot create/list/show/diff/delete`，新增快照存储层（落盘、查询、删除）、模块采集快照、差异对比与 dry-run/apply 删除门禁，并补齐单元测试。
 - 2026-03-18: `P0-021` 已开发，完成 `report generate`（`--type health/inspection/monitor`、`--time-range`），支持 table/json/markdown/csv 导出，接入快照窗口统计、health 回退策略与 monitor 目录降级提示，并补齐基础单元测试。
+- 2026-03-18: `P0-022` 已开发，新增 `internal/audit` 审计模块并落地 JSONL 审计日志，接入 `port kill`、`proc kill`、`fix cleanup`、`snapshot delete` 的 apply 执行路径，记录 command/action/target/before/after/result/error/duration/metadata。
+- 2026-03-18: `P0-023` 已开发，统一错误降级输出协议：终端错误输出补充 `错误码`，并对 `permission_denied`、`timeout`、`unsupported` 输出标准化降级说明；同时补齐错误渲染与审计模块单元测试。
 - 2026-03-14: 目录结构已迁移为 `cmd/<binary> + internal/cli`，并同步更新构建脚本、发布脚本和架构文档。
 
 ## 9. 已确认事项
