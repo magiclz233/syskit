@@ -117,3 +117,32 @@ func TestPort002RespectsAllowPublicListen(t *testing.T) {
 		t.Fatalf("PORT-002 should be skipped by allow_public_listen")
 	}
 }
+
+func TestPort001NotTriggeredWhenNoCriticalPortOccupied(t *testing.T) {
+	rules := NewP0Rules()
+	var target Rule
+	for _, rule := range rules {
+		if rule.ID() == "PORT-001" {
+			target = rule
+			break
+		}
+	}
+	if target == nil {
+		t.Fatalf("PORT-001 not found")
+	}
+
+	in := DiagnoseInput{
+		Snapshots: DiagnoseSnapshots{
+			Ports: []PortSnapshot{
+				{Port: 9090, PID: 1, ProcessName: "demo", LocalAddr: "127.0.0.1:9090"},
+			},
+		},
+	}
+	issue, err := target.Check(context.Background(), in)
+	if err != nil {
+		t.Fatalf("PORT-001 check failed: %v", err)
+	}
+	if issue != nil {
+		t.Fatalf("PORT-001 should not trigger, got issue=%+v", issue)
+	}
+}
