@@ -107,8 +107,8 @@
 | 顺序 | ID | 状态 | 需求项 | 关键交付 |
 |---|---|---|---|---|
 | 19 | `P0-019` | `已开发` | 实现存储目录与保留策略基线 | 建立快照、报告、审计数据目录与基础清理策略 |
-| 20 | `P0-020` | `待开发` | 实现 `snapshot` 命令集 | 完成 `create`、`list`、`show`、`diff`、`delete` |
-| 21 | `P0-021` | `待开发` | 实现 `report generate` | 支持 `health/inspection/monitor` 中 P0 实际可生成的报告类型与导出 |
+| 20 | `P0-020` | `已开发` | 实现 `snapshot` 命令集 | 完成 `create`、`list`、`show`、`diff`、`delete` |
+| 21 | `P0-021` | `已开发` | 实现 `report generate` | 支持 `health/inspection/monitor` 中 P0 实际可生成的报告类型与导出 |
 | 22 | `P0-022` | `待开发` | 实现真实写操作审计日志 | `port kill`、`proc kill`、`fix cleanup`、`snapshot delete` 等写操作记录审计 |
 | 23 | `P0-023` | `待开发` | 实现权限不足/超时/平台不支持的统一降级 | 所有 P0 命令对 `permission_denied`、`timeout`、`unsupported` 具备可解释的降级输出，`doctor` 输出 `skipped` 与 `coverage` |
 
@@ -163,6 +163,8 @@
 - 2026-03-16: `P0-017` 已开发，完成 `doctor port/cpu/mem/disk` 四个专项诊断命令，打通采集→规则评估→统一输出→退出码链路，并支持专项参数覆盖与模块降级为 skipped。
 - 2026-03-16: `P0-018` 已开发，完成 `doctor all` 模块编排与并发采集，接入覆盖率、问题清单、跳过项汇总和 `--fail-on` 阈值退出行为。
 - 2026-03-17: `P0-019` 已开发，新增 `internal/storage` 基线能力：自动创建 `snapshots/monitor/reports/audit` 数据目录，接入 `retention_days + max_storage_mb` 保留策略与独占锁清理，并在 CLI 初始化阶段统一执行。
+- 2026-03-18: `P0-020` 已开发，完成 `snapshot create/list/show/diff/delete`，新增快照存储层（落盘、查询、删除）、模块采集快照、差异对比与 dry-run/apply 删除门禁，并补齐单元测试。
+- 2026-03-18: `P0-021` 已开发，完成 `report generate`（`--type health/inspection/monitor`、`--time-range`），支持 table/json/markdown/csv 导出，接入快照窗口统计、health 回退策略与 monitor 目录降级提示，并补齐基础单元测试。
 - 2026-03-14: 目录结构已迁移为 `cmd/<binary> + internal/cli`，并同步更新构建脚本、发布脚本和架构文档。
 
 ## 9. 已确认事项
@@ -170,6 +172,3 @@
 1. 本清单作为 P0 唯一开发顺序文档使用。
 2. 默认按本文档顺序逐项开发，不随意跳项。
 3. 项目名称确定为 `syskit`。
-
-
-
