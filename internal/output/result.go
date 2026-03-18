@@ -108,6 +108,11 @@ func RenderError(w io.Writer, format string, err error, startedAt time.Time) err
 		if writeErr != nil {
 			return errs.ExecutionFailed("输出错误信息失败", writeErr)
 		}
+		if degradeHint := degradeHintByErrorCode(errs.ErrorCode(err)); degradeHint != "" {
+			if _, writeErr = fmt.Fprintf(w, "- 降级说明: %s\n", degradeHint); writeErr != nil {
+				return errs.ExecutionFailed("输出降级说明失败", writeErr)
+			}
+		}
 		if suggestion := errs.Suggestion(err); suggestion != "" {
 			if _, writeErr = fmt.Fprintf(w, "- 建议: %s\n", suggestion); writeErr != nil {
 				return errs.ExecutionFailed("输出错误建议失败", writeErr)
@@ -118,12 +123,33 @@ func RenderError(w io.Writer, format string, err error, startedAt time.Time) err
 		if _, writeErr := fmt.Fprintf(w, "错误: %s\n", errs.Message(err)); writeErr != nil {
 			return errs.ExecutionFailed("输出错误信息失败", writeErr)
 		}
+		if _, writeErr := fmt.Fprintf(w, "错误码: %s\n", errs.ErrorCode(err)); writeErr != nil {
+			return errs.ExecutionFailed("输出错误码失败", writeErr)
+		}
+		if degradeHint := degradeHintByErrorCode(errs.ErrorCode(err)); degradeHint != "" {
+			if _, writeErr := fmt.Fprintf(w, "降级说明: %s\n", degradeHint); writeErr != nil {
+				return errs.ExecutionFailed("输出降级说明失败", writeErr)
+			}
+		}
 		if suggestion := errs.Suggestion(err); suggestion != "" {
 			if _, writeErr := fmt.Fprintf(w, "建议: %s\n", suggestion); writeErr != nil {
 				return errs.ExecutionFailed("输出错误建议失败", writeErr)
 			}
 		}
 		return nil
+	}
+}
+
+func degradeHintByErrorCode(code string) string {
+	switch code {
+	case errs.CodePermissionDenied:
+		return "当前权限不足，已按可访问范围降级；可用管理员/root 重试以获取完整结果"
+	case errs.CodeTimeout:
+		return "命令执行超时，已终止当前阶段；可调大 --timeout 或缩小范围重试"
+	case errs.CodePlatformUnsupported:
+		return "当前平台不支持该能力，已跳过该能力执行"
+	default:
+		return ""
 	}
 }
 
