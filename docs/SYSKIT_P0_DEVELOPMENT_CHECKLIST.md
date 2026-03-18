@@ -116,7 +116,7 @@
 
 | 顺序 | ID | 状态 | 需求项 | 关键交付 |
 |---|---|---|---|---|
-| 24 | `P0-024` | `待开发` | 补齐单元测试 | 覆盖配置合并、规则判断、评分逻辑、输出渲染、参数约束 |
+| 24 | `P0-024` | `已开发` | 补齐单元测试 | 覆盖配置合并、规则判断、评分逻辑、输出渲染、参数约束 |
 | 25 | `P0-025` | `待开发` | 补齐集成测试 | 覆盖 `doctor all`、`disk scan`、`port kill/proc kill/fix cleanup` dry-run 与 apply、`snapshot`、`policy validate` |
 | 26 | `P0-026` | `待开发` | 补齐契约测试与帮助校验 | 校验 JSON 字段、规则字段、CLI 帮助和命令树一致性 |
 | 27 | `P0-027` | `待开发` | 补齐命令帮助、示例与错误提示 | 满足 P0 DoD 中“命令帮助、示例、错误提示完整”的要求 |
@@ -167,6 +167,7 @@
 - 2026-03-18: `P0-021` 已开发，完成 `report generate`（`--type health/inspection/monitor`、`--time-range`），支持 table/json/markdown/csv 导出，接入快照窗口统计、health 回退策略与 monitor 目录降级提示，并补齐基础单元测试。
 - 2026-03-18: `P0-022` 已开发，新增 `internal/audit` 审计模块并落地 JSONL 审计日志，接入 `port kill`、`proc kill`、`fix cleanup`、`snapshot delete` 的 apply 执行路径，记录 command/action/target/before/after/result/error/duration/metadata。
 - 2026-03-18: `P0-023` 已开发，统一错误降级输出协议：终端错误输出补充 `错误码`，并对 `permission_denied`、`timeout`、`unsupported` 输出标准化降级说明；同时补齐错误渲染与审计模块单元测试。
+- 2026-03-18: `P0-024` 已开发，补齐单元测试闭环：新增 `global` 参数优先级测试（命令行/环境变量/配置）、补充评分与规则边界/负例、扩展输出渲染路由与错误协议测试，并新增 `cpu/disk/doctor/fix/policy` 命令参数约束测试，验证命令：`go test ./...`。
 - 2026-03-14: 目录结构已迁移为 `cmd/<binary> + internal/cli`，并同步更新构建脚本、发布脚本和架构文档。
 
 ## 9. 已确认事项
