@@ -245,6 +245,8 @@ func defaultSuggestion(exitCode int, errCode string) string {
 		return "请使用 --help 查看正确用法"
 	case CodePermissionDenied:
 		return "请提升权限后重试"
+	case CodePlatformUnsupported:
+		return "当前平台不支持该功能，请在支持的平台执行"
 	case CodeConfigInvalid:
 		return "请检查配置文件格式和字段取值"
 	case CodePolicyInvalid:
