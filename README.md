@@ -1,201 +1,134 @@
 # syskit
 
-一个跨平台本地系统运维 CLI 项目。当前仓库仍以内置的磁盘扫描能力为主，用来准确找出目标目录树中：
+`syskit` 是一个跨平台本地系统运维 CLI，当前已完成 P0 阶段的诊断、扫描、清理、快照、报告和策略基线能力。
 
-- 最大的子目录
-- 最大的文件
+当前正式可用的 P0 命令包括：
 
-当前代码实现仍以全量准确扫描为主，后续将按 `docs/SYSKIT_*` 文档逐步扩展为完整的 `syskit` P0 能力。
+- `doctor all/port/cpu/mem/disk`
+- `disk`、`disk scan <path>`
+- `port <expr>`、`port list`、`port kill <port>`
+- `proc top/tree/info/kill`
+- `cpu`、`mem`、`mem top`
+- `fix cleanup`
+- `snapshot create/list/show/diff/delete`
+- `report generate`
+- `policy show/init/validate`
 
-## 特性
+CLI 帮助树中同时注册了 P1/P2 占位命令，用于保持命令树、帮助文案和后续扩展路径稳定；这些命令当前会明确返回“尚未开发”。
 
-- 全量扫描整个目录树，结果完整
-- 同时输出 Top N 子目录和 Top N 文件
-- 支持表格、JSON、CSV 输出
-- 支持排除指定目录
-- 自动跳过无权限路径和符号链接
-- Windows、Linux、macOS 可用
+## 关键行为
 
-## 构建
+- `syskit` 无参数默认显示帮助，不再兼容旧的根命令扫描入口。
+- 正式扫描入口只有 `syskit disk scan <path>`。
+- 写操作默认 `dry-run`，危险操作需要显式传入 `--apply --yes`。
+- 结构化输出统一使用 `--format json`，JSON 顶层 envelope 与关键字段已纳入契约测试。
+- 审计日志、快照和报告统一落在 `storage.data_dir` 下，可通过 `SYSKIT_DATA_DIR` 覆盖。
 
-### 直接编译
+## 快速开始
+
+直接查看帮助：
 
 ```bash
-go build -o syskit ./cmd/syskit
+go run ./cmd/syskit --help
 ```
 
-Windows:
+执行一次体检：
 
-```powershell
-go build -o syskit.exe ./cmd/syskit
+```bash
+go run ./cmd/syskit doctor all --fail-on never
 ```
 
-### 使用构建脚本
+扫描当前目录：
 
-构建脚本支持的目标如下：
+```bash
+go run ./cmd/syskit disk scan . --limit 20 --format json
+```
+
+查看快照与策略：
+
+```bash
+go run ./cmd/syskit snapshot list --limit 10
+go run ./cmd/syskit policy init --type config --output .syskit/config.yaml
+go run ./cmd/syskit policy validate .syskit/config.yaml --type config
+```
+
+真实执行写操作前，先看 dry-run：
+
+```bash
+go run ./cmd/syskit fix cleanup --target temp --older-than 72h
+go run ./cmd/syskit port kill 8080 --apply --yes
+```
+
+更多示例见 [快速开始](docs/QUICKSTART.md)。
+
+## 构建与验证
+
+正式支持的构建目标只有 6 个：
 
 - `windows-amd64`
-- `windows-386`
 - `windows-arm64`
 - `linux-amd64`
-- `linux-386`
 - `linux-arm64`
-- `linux-arm`
 - `darwin-amd64`
 - `darwin-arm64`
-- 聚合目标：`all`、`windows`、`linux`、`darwin`
 
-Linux/macOS:
+常用命令：
 
 ```bash
-./scripts/build.sh
+go test ./...
 ./scripts/build.sh all
+./scripts/verify-p0.sh
 ```
 
-Windows:
+Windows：
 
 ```powershell
-scripts\build.bat
+go test ./...
 scripts\build.bat all
-scripts\build.bat linux-arm64
-scripts\build.bat darwin-arm64
+scripts\verify-p0.bat
 ```
 
-产物统一输出到 `build/`，文件名格式为：
-
-```text
-syskit-<platform>[.exe]
-```
-
-示例：
-
-- `syskit-windows-x64.exe`
-- `syskit-linux-arm64`
-- `syskit-macos-arm64`
+`verify-p0` 会统一执行全量测试、六目标交叉编译，以及核心 help/smoke 命令。
 
 ## 发布
 
-### 推荐方式：发布脚本 + GitHub Actions
-
-Windows:
-
-```powershell
-scripts\release.bat 0.4.0
-git push origin master --follow-tags
-```
-
-Linux/macOS:
+本地发布脚本：
 
 ```bash
 ./scripts/release.sh 0.4.0
-git push origin master --follow-tags
 ```
 
-推送 `v0.4.0` 这类 tag 后，GitHub Actions 工作流会自动构建全部平台并创建 GitHub Release。
-
-### 手动方式：GitHub CLI
-
-```bash
-gh release create v0.4.0 build/* --title "v0.4.0" --notes "Release 0.4.0"
-```
-
-更详细的发布步骤见 [发布说明](docs/RELEASE_GUIDE.md) 和 [脚本说明](scripts/README.md)。
-
-## 使用
-
-### 基本命令
-
-```bash
-syskit D:\
-syskit .
-syskit --top 50 D:\
-syskit --exclude node_modules,.git,vendor D:\
-```
-
-### 输出控制
-
-```bash
-# 只看文件
-syskit --include-dirs=false D:\
-
-# 只看子目录
-syskit --include-files=false D:\
-
-# JSON 输出
-syskit --format json D:\
-
-# CSV 导出
-syskit --export-csv report D:\
-```
-
-## 输出语义
-
-- 子目录结果不包含扫描根目录本身
-- 子目录大小是累计大小，包含其所有后代文件和目录
-- 文件结果按单文件大小排序
-
-## 主要参数
-
-- `--top`, `-t`: 返回前 N 条目录和文件结果
-- `--exclude`: 排除目录名，多个值用逗号分隔
-- `--include-files`: 是否输出文件结果
-- `--include-dirs`: 是否输出子目录结果
-- `--format`: `table`、`json`、`csv`
-- `--export-csv`: 导出 CSV 文件前缀
-- `--help`: 查看帮助
-- `--version`: 查看版本
-
-## PowerShell 脚本
-
-仓库提供了一个本地脚本包装器：
+Windows：
 
 ```powershell
-scripts\find-largest-local.ps1
-scripts\find-largest-local.ps1 -Path D:\ -Top 30
-scripts\find-largest-local.ps1 -Path D:\ -Exclude "node_modules,.git" -ExportCsvPath D:\scan
+scripts\release.bat 0.4.0
 ```
 
-它会优先调用已编译的程序；如果找不到，就回退到 `go run ./cmd/syskit`。
+GitHub Actions 的 [release.yml](.github/workflows/release.yml) 会在推送 `v*` tag 后调用 `scripts/build.sh all`，发布这 6 个正式目标的产物。
+
+发布细节见 [发布说明](docs/RELEASE_GUIDE.md)。
 
 ## 项目结构
 
 ```text
 syskit/
-├── cmd/
-│   └── syskit/
-│       └── main.go
-├── internal/
-│   ├── cli/
-│   ├── errs/
-│   ├── scanner/
-│   └── version/
-├── pkg/
-│   └── utils/
-│       └── size.go
-├── docs/
-│   ├── QUICKSTART.md
-│   ├── DESIGN.md
-│   ├── DEV_GUIDE.md
-│   └── RELEASE_GUIDE.md
-└── scripts/
-    ├── build.bat
-    ├── build.sh
-    ├── find-largest-local.ps1
-    ├── release.bat
-    ├── release.sh
-    └── README.md
+├── cmd/syskit/               # 二进制入口
+├── internal/cli/             # Cobra 命令树与命令编排
+├── internal/collectors/      # 端口、进程、CPU、内存、磁盘采集
+├── internal/domain/          # 规则、评分、快照/报告领域模型
+├── internal/config/          # 配置加载与校验
+├── internal/output/          # 统一输出渲染
+├── internal/storage/         # data_dir 布局、快照/报告/保留策略
+├── internal/audit/           # 写操作 JSONL 审计
+├── scripts/                  # 构建、验证、发布脚本
+└── docs/                     # CLI 规范、架构、开发/发布文档
 ```
 
-## 开发
-
-```bash
-go test ./...
-gofmt -w .
-```
-
-更多信息见：
+## 文档
 
 - [快速开始](docs/QUICKSTART.md)
-- [设计说明](docs/DESIGN.md)
 - [开发说明](docs/DEV_GUIDE.md)
+- [设计说明](docs/DESIGN.md)
 - [发布说明](docs/RELEASE_GUIDE.md)
+- [脚本说明](scripts/README.md)
+- [P0 平台验证清单](docs/P0_PLATFORM_VERIFICATION.md)
