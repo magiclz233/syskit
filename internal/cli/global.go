@@ -53,7 +53,7 @@ func (o *globalOptions) Bind(rootCmd *cobra.Command) {
 	flags.StringVar(&o.config, "config", "", "指定配置文件路径")
 	flags.StringVar(&o.policy, "policy", "", "指定策略文件路径")
 	flags.BoolVarP(&o.quiet, "quiet", "q", false, "仅输出核心结果或错误")
-	flags.BoolVarP(&o.verbose, "verbose", "V", false, "输出调试信息")
+	flags.BoolVarP(&o.verbose, "verbose", "v", false, "输出调试信息")
 	flags.BoolVar(&o.noColor, "no-color", false, "禁用颜色输出")
 	flags.DurationVar(&o.timeout, "timeout", 0, "覆盖命令超时时间")
 	flags.BoolVar(&o.dryRun, "dry-run", true, "写操作默认开启，仅 fix/service/startup/file 等命令生效")
