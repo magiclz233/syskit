@@ -90,7 +90,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "doctor",
 		Short: "系统体检与专项诊断",
-		Args:  cobra.NoArgs,
+		Long: "doctor 提供一键体检和专项诊断入口，用于把采集、规则判断、评分和退出码协议串成统一闭环。" +
+			"\n\nP0 当前提供 all、port、cpu、mem、disk 五个正式入口，其余专项入口为占位命令。",
+		Example: "  syskit doctor all\n" +
+			"  syskit doctor all --mode deep --fail-on medium\n" +
+			"  syskit doctor disk --threshold 85",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -112,7 +117,12 @@ func newAllCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "all",
 		Short: "执行全量体检",
-		Args:  cobra.NoArgs,
+		Long: "doctor all 会并发采集端口、CPU、内存和磁盘信息，统一输出健康分、问题清单、覆盖率和跳过项。" +
+			"\n\n建议自动化场景配合 --fail-on 和 --format json 使用。",
+		Example: "  syskit doctor all\n" +
+			"  syskit doctor all --mode deep --fail-on never --format json\n" +
+			"  syskit doctor all --exclude disk",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDoctorAll(cmd, opts)
 		},
@@ -129,7 +139,12 @@ func newPortCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "port",
 		Short: "执行端口专项诊断",
-		Args:  cobra.NoArgs,
+		Long: "doctor port 用于诊断关键端口冲突和公网监听风险。" +
+			"\n\n可以只针对指定端口，或只看常见关键端口集合。",
+		Example: "  syskit doctor port\n" +
+			"  syskit doctor port --common-ports\n" +
+			"  syskit doctor port --port 8080 --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDoctorPort(cmd, opts)
 		},
@@ -146,7 +161,12 @@ func newCPUCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cpu",
 		Short: "执行 CPU 专项诊断",
-		Args:  cobra.NoArgs,
+		Long: "doctor cpu 用于评估系统整体 CPU 使用率是否异常，并定位高 CPU 进程。" +
+			"\n\n--duration 用于控制采样窗口，适合在短时波动场景下重复执行。",
+		Example: "  syskit doctor cpu\n" +
+			"  syskit doctor cpu --threshold 85\n" +
+			"  syskit doctor cpu --duration 5 --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDoctorCPU(cmd, opts)
 		},
@@ -163,7 +183,12 @@ func newMemCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mem",
 		Short: "执行内存专项诊断",
-		Args:  cobra.NoArgs,
+		Long: "doctor mem 用于评估系统可用内存和高内存进程是否越过阈值。" +
+			"\n\n适合和 `mem`/`mem top` 配合，先做规则判断，再看详细排行。",
+		Example: "  syskit doctor mem\n" +
+			"  syskit doctor mem --threshold 90\n" +
+			"  syskit doctor mem --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDoctorMem(cmd, opts)
 		},
@@ -178,7 +203,12 @@ func newDiskCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "disk",
 		Short: "执行磁盘专项诊断",
-		Args:  cobra.NoArgs,
+		Long: "doctor disk 用于评估分区使用率、剩余空间和增长速率风险。" +
+			"\n\n如果需要查看具体膨胀目录或大文件，请继续执行 `syskit disk scan <path>`。",
+		Example: "  syskit doctor disk\n" +
+			"  syskit doctor disk --threshold 90\n" +
+			"  syskit doctor disk --analyze-growth --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDoctorDisk(cmd, opts)
 		},

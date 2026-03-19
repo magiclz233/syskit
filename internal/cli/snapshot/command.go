@@ -122,7 +122,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "snapshot",
 		Short: "快照管理命令",
-		Args:  cobra.NoArgs,
+		Long: "snapshot 用于创建、查看、对比和删除系统快照，支撑报告生成和状态回溯。" +
+			"\n\n删除快照属于写操作，默认仍会先以 dry-run 方式输出计划。",
+		Example: "  syskit snapshot create --module port,cpu\n" +
+			"  syskit snapshot list --limit 10\n" +
+			"  syskit snapshot diff snap-a snap-b",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -144,7 +149,11 @@ func newCreateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "创建系统快照",
-		Args:  cobra.NoArgs,
+		Long:  "snapshot create 用于采集当前系统指定模块的数据并落盘为可追踪快照。",
+		Example: "  syskit snapshot create\n" +
+			"  syskit snapshot create --name nightly --module port,cpu\n" +
+			"  syskit snapshot create --description \"发布前基线\"",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCreate(cmd, opts)
 		},
@@ -162,7 +171,11 @@ func newListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "列出已保存快照",
-		Args:  cobra.NoArgs,
+		Long:  "snapshot list 用于查看本地已保存的快照摘要。",
+		Example: "  syskit snapshot list\n" +
+			"  syskit snapshot list --limit 5\n" +
+			"  syskit snapshot list --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(cmd, opts)
 		},
@@ -176,7 +189,11 @@ func newShowCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show <id>",
 		Short: "查看快照详情",
-		Args:  cobra.ExactArgs(1),
+		Long:  "snapshot show 用于查看单个快照的完整内容，也可按模块过滤。",
+		Example: "  syskit snapshot show snap-a\n" +
+			"  syskit snapshot show snap-a --module port,cpu\n" +
+			"  syskit snapshot show snap-a --format json",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runShow(cmd, args[0], opts)
 		},
@@ -190,7 +207,11 @@ func newDiffCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff <idA> [idB]",
 		Short: "比较两个快照",
-		Args:  cobra.RangeArgs(1, 2),
+		Long:  "snapshot diff 用于比较两个快照的模块差异；只传一个 ID 时会自动选择最近的另一个快照。",
+		Example: "  syskit snapshot diff snap-a snap-b\n" +
+			"  syskit snapshot diff snap-a --only-change\n" +
+			"  syskit snapshot diff snap-a snap-b --module port,cpu",
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDiff(cmd, args, opts)
 		},
@@ -207,7 +228,11 @@ func newDeleteCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <id>",
 		Short: "删除指定快照",
-		Args:  cobra.ExactArgs(1),
+		Long:  "snapshot delete 默认只输出删除计划；真实删除必须显式传入 `--apply --yes`，并会写入审计日志。",
+		Example: "  syskit snapshot delete snap-a\n" +
+			"  syskit snapshot delete snap-a --apply --yes\n" +
+			"  syskit snapshot delete snap-a --format json",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runDelete(cmd, args[0], opts)
 		},

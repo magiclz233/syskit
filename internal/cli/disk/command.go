@@ -34,7 +34,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "disk",
 		Short: "磁盘总览与扫描",
-		Args:  cobra.NoArgs,
+		Long: "disk 用于查看分区容量、使用率和剩余空间等总览信息。" +
+			"\n\n需要定位膨胀目录或大文件时，请使用 `disk scan <path>` 子命令。",
+		Example: "  syskit disk\n" +
+			"  syskit disk --detail\n" +
+			"  syskit disk --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runOverview(cmd, overviewOpts)
 		},
@@ -56,7 +61,12 @@ func newScanCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scan <path>",
 		Short: "扫描大文件和大目录",
-		Args:  cobra.ExactArgs(1),
+		Long: "disk scan 用于扫描指定目录下的大文件和大目录，输出 Top 结果、总体统计和结构化结果。" +
+			"\n\n这是正式扫描入口；根命令已不再承载旧扫描兼容行为。",
+		Example: "  syskit disk scan /var/log\n" +
+			"  syskit disk scan . --limit 50 --min-size 100MB\n" +
+			"  syskit disk scan D:\\logs --exclude node_modules,.git --export-csv report",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runScan(cmd, args[0], opts)
 		},

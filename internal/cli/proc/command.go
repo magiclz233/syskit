@@ -52,7 +52,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "proc",
 		Short: "进程查询与管理",
-		Args:  cobra.NoArgs,
+		Long: "proc 提供进程排行、进程树、单进程详情和终止能力。" +
+			"\n\n`proc kill` 属于写操作，正式执行前必须同时传入 `--apply --yes`。",
+		Example: "  syskit proc top --by cpu --top 10\n" +
+			"  syskit proc tree 1234 --detail\n" +
+			"  syskit proc kill 1234",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -77,7 +82,11 @@ func newTopCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "top",
 		Short: "查看进程资源排行",
-		Args:  cobra.NoArgs,
+		Long:  "proc top 用于按 CPU、内存、IO 或文件描述符维度查看进程排行。",
+		Example: "  syskit proc top\n" +
+			"  syskit proc top --by mem --top 20\n" +
+			"  syskit proc top --user postgres --name java",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTop(cmd, opts)
 		},
@@ -97,7 +106,11 @@ func newTreeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tree [pid]",
 		Short: "查看进程树",
-		Args:  cobra.MaximumNArgs(1),
+		Long:  "proc tree 用于查看某个进程或整机的进程树关系，默认会限制层级深度以便快速阅读。",
+		Example: "  syskit proc tree\n" +
+			"  syskit proc tree 1234\n" +
+			"  syskit proc tree 1234 --detail --full",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTree(cmd, args, opts)
 		},
@@ -114,7 +127,11 @@ func newInfoCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "info <pid>",
 		Short: "查看单进程详情",
-		Args:  cobra.ExactArgs(1),
+		Long:  "proc info 用于查看单个进程的资源、父子关系和命令行信息。",
+		Example: "  syskit proc info 1234\n" +
+			"  syskit proc info 1234 --env\n" +
+			"  syskit proc info 1234 --format json",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInfo(cmd, args[0], opts)
 		},
@@ -129,7 +146,12 @@ func newKillCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kill <pid>",
 		Short: "结束指定进程",
-		Args:  cobra.ExactArgs(1),
+		Long: "proc kill 会先生成终止计划，默认只做 dry-run。" +
+			"\n\n若要真实执行，必须显式传入 `--apply --yes`；执行结果会写入审计日志。",
+		Example: "  syskit proc kill 1234\n" +
+			"  syskit proc kill 1234 --tree\n" +
+			"  syskit proc kill 1234 --apply --yes",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runKill(cmd, args[0], opts)
 		},

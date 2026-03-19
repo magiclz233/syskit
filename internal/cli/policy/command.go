@@ -76,7 +76,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
 		Short: "配置与策略管理命令",
-		Args:  cobra.NoArgs,
+		Long: "policy 用于查看生效配置、生成默认模板和校验配置/策略文件。" +
+			"\n\n其中 `policy validate` 会跳过默认配置加载，只校验你显式指定的目标文件。",
+		Example: "  syskit policy show\n" +
+			"  syskit policy init --type all --output .syskit\n" +
+			"  syskit policy validate config.yaml --type config",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -98,7 +103,11 @@ func newShowCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show",
 		Short: "查看生效配置和策略",
-		Args:  cobra.NoArgs,
+		Long:  "policy show 用于查看当前最终生效的配置和策略内容，也可以只输出内置默认模板。",
+		Example: "  syskit policy show\n" +
+			"  syskit policy show --type config\n" +
+			"  syskit policy show --default --type policy",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runShow(cmd, opts)
 		},
@@ -118,7 +127,12 @@ func newInitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "生成配置或策略模板",
-		Args:  cobra.NoArgs,
+		Long: "policy init 用于生成默认配置模板和策略模板。" +
+			"\n\n不传 `--output` 时会直接输出到终端，传入 `--output` 时会写入目标文件或目录。",
+		Example: "  syskit policy init\n" +
+			"  syskit policy init --type config --output config.yaml\n" +
+			"  syskit policy init --type all --output .syskit",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runInit(cmd, opts)
 		},
@@ -135,7 +149,12 @@ func newValidateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate <path>",
 		Short: "校验配置或策略文件",
-		Args:  cobra.ExactArgs(1),
+		Long: "policy validate 用于校验单个配置文件或策略文件的格式和字段取值。" +
+			"\n\n该命令不会受当前坏配置反向阻塞，适合用在修复配置问题前的预检查流程里。",
+		Example: "  syskit policy validate config.yaml --type config\n" +
+			"  syskit policy validate policy.yaml --type policy\n" +
+			"  syskit policy validate .syskit/config.yaml --format json",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runValidate(cmd, args[0], opts)
 		},

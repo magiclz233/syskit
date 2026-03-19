@@ -29,7 +29,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mem",
 		Short: "内存总览与分析",
-		Args:  cobra.NoArgs,
+		Long: "mem 用于输出系统内存总览、可用内存、Swap 使用情况和高内存进程概览。" +
+			"\n\n需要进一步按进程排序时，可继续使用 `mem top`。",
+		Example: "  syskit mem\n" +
+			"  syskit mem --detail\n" +
+			"  syskit mem --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runOverview(cmd, overviewOpts)
 		},
@@ -49,7 +54,12 @@ func newTopCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "top",
 		Short: "查看进程内存排行",
-		Args:  cobra.NoArgs,
+		Long: "mem top 用于按 RSS、VMS 或 Swap 维度输出进程内存排行。" +
+			"\n\n可以结合 --user 和 --name 缩小排查范围。",
+		Example: "  syskit mem top\n" +
+			"  syskit mem top --top 10 --by rss\n" +
+			"  syskit mem top --user postgres --name java",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTop(cmd, opts)
 		},

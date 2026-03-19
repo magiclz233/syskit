@@ -34,7 +34,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fix",
 		Short: "修复与清理命令",
-		Args:  cobra.NoArgs,
+		Long: "fix 提供当前版本允许的受控修复入口。" +
+			"\n\nP0 当前仅开放 `fix cleanup`，其他修复剧本入口保留为占位命令。",
+		Example: "  syskit fix cleanup\n" +
+			"  syskit fix cleanup --target temp,logs\n" +
+			"  syskit fix cleanup --apply",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -53,7 +58,12 @@ func newCleanupCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cleanup",
 		Short: "执行 temp/logs/cache 清理",
-		Args:  cobra.NoArgs,
+		Long: "fix cleanup 会先扫描 temp/logs/cache 候选文件并生成清理计划，默认只做 dry-run。" +
+			"\n\n传入 `--apply` 后会真实删除文件，并记录审计日志。",
+		Example: "  syskit fix cleanup\n" +
+			"  syskit fix cleanup --target temp --older-than 72h\n" +
+			"  syskit fix cleanup --apply --older-than 7d",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCleanup(cmd, opts)
 		},

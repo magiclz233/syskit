@@ -85,7 +85,11 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "report",
 		Short: "报告生成命令",
-		Args:  cobra.NoArgs,
+		Long:  "report 用于基于快照和监控目录生成健康、巡检和监控报告。",
+		Example: "  syskit report generate\n" +
+			"  syskit report generate --type inspection --time-range 7d\n" +
+			"  syskit report generate --type monitor --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -104,7 +108,12 @@ func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate",
 		Short: "生成 health/inspection/monitor 报告",
-		Args:  cobra.NoArgs,
+		Long: "report generate 会读取快照存储和监控目录，在给定时间窗口内汇总为结构化报告。" +
+			"\n\n当窗口内缺少样本时，结果会通过 warnings 明确提示降级情况。",
+		Example: "  syskit report generate\n" +
+			"  syskit report generate --type inspection --time-range 7d\n" +
+			"  syskit report generate --type health --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGenerate(cmd, opts)
 		},

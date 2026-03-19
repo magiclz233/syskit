@@ -20,7 +20,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cpu",
 		Short: "CPU 总览与分析",
-		Args:  cobra.NoArgs,
+		Long: "cpu 用于输出系统 CPU 总览、负载信息以及高 CPU 进程概览。" +
+			"\n\n该命令为只读诊断命令，适合先快速确认当前机器是否存在 CPU 资源争用。",
+		Example: "  syskit cpu\n" +
+			"  syskit cpu --detail\n" +
+			"  syskit cpu --format json",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runOverview(cmd, opts)
 		},

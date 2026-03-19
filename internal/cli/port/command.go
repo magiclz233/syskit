@@ -48,7 +48,12 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "port <port[,port]|range>",
 		Short: "端口查询与释放",
-		Args:  cobra.MaximumNArgs(1),
+		Long: "port 提供端口占用查询、监听列表查看和端口释放能力。" +
+			"\n\n`port kill` 属于写操作，正式执行前必须同时传入 `--apply --yes`。",
+		Example: "  syskit port 8080\n" +
+			"  syskit port 80,443,8080 --detail\n" +
+			"  syskit port list --protocol tcp --by pid",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				return cmd.Help()
@@ -73,7 +78,11 @@ func newListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "查看监听端口列表",
-		Args:  cobra.NoArgs,
+		Long:  "port list 用于查看当前主机的监听端口，并支持按 PID、协议和监听地址过滤。",
+		Example: "  syskit port list\n" +
+			"  syskit port list --protocol tcp --listen 127.0.0.1\n" +
+			"  syskit port list --by pid --detail",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runList(cmd, opts)
 		},
@@ -92,7 +101,12 @@ func newKillCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kill <port>",
 		Short: "释放指定端口",
-		Args:  cobra.ExactArgs(1),
+		Long: "port kill 会先发现端口占用进程并生成释放计划，默认只做 dry-run。" +
+			"\n\n若要真实执行，必须显式传入 `--apply --yes`；执行结果会写入审计日志。",
+		Example: "  syskit port kill 8080\n" +
+			"  syskit port kill 8080 --force\n" +
+			"  syskit port kill 8080 --apply --yes",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runKill(cmd, args[0], opts)
 		},
