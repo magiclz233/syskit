@@ -23,17 +23,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// rootFlags 保存根命令兼容扫描模式专有的参数。
-// 这些参数不会继承给其他子命令。
-type rootFlags struct {
-	topN         int
-	excludeDirs  string
-	includeFiles bool
-	includeDirs  bool
-	exportCSV    string
-	showVersion  bool
-}
-
 // Execute 是整个 CLI 的统一入口。
 // 它负责执行 Cobra 命令树，并在出错时走统一错误渲染逻辑。
 func Execute(version string) error {
@@ -77,21 +66,19 @@ func newApplication(version string) *application {
 		startedAt: time.Now(),
 	}
 
-	opts := &rootFlags{
-		topN:         20,
-		includeFiles: true,
-		includeDirs:  true,
-	}
+	var showVersion bool
 
 	rootCmd := &cobra.Command{
-		Use:   "syskit [path]",
+		Use:   "syskit",
 		Short: "跨平台本地系统运维 CLI 工具",
-		Long:  "syskit 是一个跨平台本地系统运维 CLI 工具。当前根命令仍保留目录扫描能力，P0 其他命令会按开发清单逐步接入。",
-		Example: "  syskit D:\\\n" +
-			"  syskit --format json D:\\\n" +
-			"  syskit doctor all\n" +
-			"  syskit disk scan /var/log",
-		Args:          cobra.MaximumNArgs(1),
+		Long: "syskit 是一个跨平台本地系统运维 CLI 工具，当前已交付 P0 所需的诊断、扫描、清理、快照、报告和策略基线命令。" +
+			"\n\nP1/P2 命令已经在帮助树中预留为占位入口，便于脚本、文档和命令树保持一致；未实现命令会明确提示“尚未开发”。",
+		Example: "  syskit doctor all --fail-on never\n" +
+			"  syskit disk scan /var/log --limit 20 --format json\n" +
+			"  syskit snapshot create --module port,cpu\n" +
+			"  syskit policy show --type all\n" +
+			"  syskit fix cleanup --target temp --older-than 72h",
+		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -101,19 +88,16 @@ func newApplication(version string) *application {
 			DisableDefaultCmd: true,
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLegacyScan(cmd, args, version, opts, app.global)
+			if showVersion {
+				_, _ = io.WriteString(cmd.OutOrStdout(), "syskit version "+version+"\n")
+				return nil
+			}
+			return cmd.Help()
 		},
 	}
 
 	app.global.Bind(rootCmd)
-
-	flags := rootCmd.Flags()
-	flags.IntVarP(&opts.topN, "top", "t", 20, "显示 Top N 结果")
-	flags.StringVar(&opts.excludeDirs, "exclude", "", "排除的目录（逗号分隔，如: node_modules,.git）")
-	flags.BoolVar(&opts.includeFiles, "include-files", true, "包含文件结果")
-	flags.BoolVar(&opts.includeDirs, "include-dirs", true, "包含目录结果")
-	flags.StringVar(&opts.exportCSV, "export-csv", "", "CSV 导出路径前缀")
-	flags.BoolVarP(&opts.showVersion, "version", "v", false, "显示版本信息")
+	rootCmd.Flags().BoolVar(&showVersion, "version", false, "显示版本信息")
 
 	rootCmd.AddCommand(
 		doctor.NewCommand(),
@@ -127,6 +111,7 @@ func newApplication(version string) *application {
 		report.NewCommand(),
 		policy.NewCommand(),
 	)
+	registerPendingCommands(rootCmd)
 
 	app.rootCmd = rootCmd
 	return app
