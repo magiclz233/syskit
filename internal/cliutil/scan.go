@@ -1,5 +1,5 @@
 // Package cliutil 中的扫描执行器用于复用目录扫描命令的公共流程。
-// 目前根命令兼容扫描和 `disk scan` 都走这里，避免两个入口各自维护一套输出逻辑。
+// 当前正式扫描入口已经收敛为 `disk scan`，这里保留的是扫描执行与输出的共享实现。
 package cliutil
 
 import (
