@@ -3,20 +3,17 @@
 # 用法: ./build.sh [target]
 #
 # 参数:
-#   (无参数)          - 编译当前平台版本
-#   all              - 编译所有平台版本
-#   windows          - 编译所有 Windows 版本
-#   windows-amd64    - 编译 Windows 64位版本
-#   windows-386      - 编译 Windows 32位版本
-#   windows-arm64    - 编译 Windows ARM64版本
-#   linux            - 编译所有 Linux 版本
-#   linux-amd64      - 编译 Linux 64位版本
-#   linux-386        - 编译 Linux 32位版本
-#   linux-arm64      - 编译 Linux ARM64版本
-#   linux-arm        - 编译 Linux ARM32版本
-#   darwin           - 编译所有 macOS 版本
-#   darwin-amd64     - 编译 macOS Intel版本
-#   darwin-arm64     - 编译 macOS Apple Silicon版本
+#   (无参数)          - 编译当前平台版本（仅支持 amd64/arm64）
+#   all              - 编译所有正式支持的平台版本
+#   windows          - 编译所有 Windows 正式版本
+#   windows-amd64    - 编译 Windows x64 版本
+#   windows-arm64    - 编译 Windows ARM64 版本
+#   linux            - 编译所有 Linux 正式版本
+#   linux-amd64      - 编译 Linux x64 版本
+#   linux-arm64      - 编译 Linux ARM64 版本
+#   darwin           - 编译所有 macOS 正式版本
+#   darwin-amd64     - 编译 macOS Intel 版本
+#   darwin-arm64     - 编译 macOS Apple Silicon 版本
 
 set -e
 
@@ -45,12 +42,9 @@ artifact_label() {
     local arch=$2
     case "${os}-${arch}" in
         windows-amd64) echo "windows-x64" ;;
-        windows-386) echo "windows-x86" ;;
         windows-arm64) echo "windows-arm64" ;;
         linux-amd64) echo "linux-x64" ;;
-        linux-386) echo "linux-x86" ;;
         linux-arm64) echo "linux-arm64" ;;
-        linux-arm) echo "linux-armv7" ;;
         darwin-amd64) echo "macos-x64" ;;
         darwin-arm64) echo "macos-arm64" ;;
         *) echo "${os}-${arch}" ;;
@@ -100,14 +94,11 @@ detect_platform() {
         x86_64|amd64)
             arch="amd64"
             ;;
-        i386|i686)
-            arch="386"
-            ;;
         aarch64|arm64)
             arch="arm64"
             ;;
-        armv7l)
-            arch="arm"
+        *)
+            arch="unsupported"
             ;;
     esac
 
@@ -121,14 +112,11 @@ build_all() {
 
     # Windows
     build windows amd64 .exe
-    build windows 386 .exe
     build windows arm64 .exe
 
     # Linux
     build linux amd64 ""
-    build linux 386 ""
     build linux arm64 ""
-    build linux arm ""
 
     # macOS
     build darwin amd64 ""
@@ -145,7 +133,6 @@ build_windows() {
     echo -e "${YELLOW}=== 编译 Windows 版本 ===${NC}"
     echo ""
     build windows amd64 .exe
-    build windows 386 .exe
     build windows arm64 .exe
     echo ""
     echo -e "${GREEN}=== Windows 版本编译完成 ===${NC}"
@@ -156,9 +143,7 @@ build_linux() {
     echo -e "${YELLOW}=== 编译 Linux 版本 ===${NC}"
     echo ""
     build linux amd64 ""
-    build linux 386 ""
     build linux arm64 ""
-    build linux arm ""
     echo ""
     echo -e "${GREEN}=== Linux 版本编译完成 ===${NC}"
 }
@@ -183,12 +168,22 @@ build_current() {
     if [ "$os" = "windows" ]; then
         ext=".exe"
     fi
+    if [ "$arch" = "unsupported" ]; then
+        echo -e "${RED}错误: 当前宿主机架构不在正式支持范围内，仅支持 amd64/arm64。${NC}"
+        return 1
+    fi
 
     echo -e "${YELLOW}=== 编译当前平台版本 (${os}/${arch}) ===${NC}"
     echo ""
     build $os $arch $ext
     echo ""
     echo -e "${GREEN}=== 编译完成 ===${NC}"
+}
+
+show_removed_target() {
+    local target=$1
+    echo -e "${RED}错误: 目标 ${target} 已下线。${NC}"
+    echo "当前正式支持的构建目标仅包含 amd64/arm64 六个平台组合。"
 }
 
 # 显示帮助
@@ -198,20 +193,17 @@ show_help() {
     echo "用法: ./build.sh [target]"
     echo ""
     echo "参数:"
-    echo "  (无参数)          - 编译当前平台版本"
-    echo "  all              - 编译所有平台版本"
-    echo "  windows          - 编译所有 Windows 版本"
-    echo "  windows-amd64    - 编译 Windows 64位版本"
-    echo "  windows-386      - 编译 Windows 32位版本"
-    echo "  windows-arm64    - 编译 Windows ARM64版本"
-    echo "  linux            - 编译所有 Linux 版本"
-    echo "  linux-amd64      - 编译 Linux 64位版本"
-    echo "  linux-386        - 编译 Linux 32位版本"
-    echo "  linux-arm64      - 编译 Linux ARM64版本"
-    echo "  linux-arm        - 编译 Linux ARM32版本"
-    echo "  darwin           - 编译所有 macOS 版本"
-    echo "  darwin-amd64     - 编译 macOS Intel版本"
-    echo "  darwin-arm64     - 编译 macOS Apple Silicon版本"
+    echo "  (无参数)          - 编译当前平台版本（仅 amd64/arm64）"
+    echo "  all              - 编译所有正式支持的平台版本"
+    echo "  windows          - 编译所有 Windows 正式版本"
+    echo "  windows-amd64    - 编译 Windows x64 版本"
+    echo "  windows-arm64    - 编译 Windows ARM64 版本"
+    echo "  linux            - 编译所有 Linux 正式版本"
+    echo "  linux-amd64      - 编译 Linux x64 版本"
+    echo "  linux-arm64      - 编译 Linux ARM64 版本"
+    echo "  darwin           - 编译所有 macOS 正式版本"
+    echo "  darwin-amd64     - 编译 macOS Intel 版本"
+    echo "  darwin-arm64     - 编译 macOS Apple Silicon 版本"
     echo "  help             - 显示此帮助信息"
     echo ""
     echo "示例:"
@@ -239,9 +231,6 @@ main() {
         windows-amd64)
             build windows amd64 .exe
             ;;
-        windows-386)
-            build windows 386 .exe
-            ;;
         windows-arm64)
             build windows arm64 .exe
             ;;
@@ -251,14 +240,12 @@ main() {
         linux-amd64)
             build linux amd64 ""
             ;;
-        linux-386)
-            build linux 386 ""
-            ;;
         linux-arm64)
             build linux arm64 ""
             ;;
-        linux-arm)
-            build linux arm ""
+        windows-386|linux-386|linux-arm)
+            show_removed_target "$target"
+            exit 1
             ;;
         darwin)
             build_darwin

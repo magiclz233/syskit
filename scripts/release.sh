@@ -1,7 +1,7 @@
 #!/bin/bash
-# Release script for syskit
-# Usage: ./scripts/release.sh <version>
-# Example: ./scripts/release.sh 0.3.0
+# syskit 发布脚本
+# 用法: ./scripts/release.sh <version>
+# 示例: ./scripts/release.sh 0.4.0
 
 set -e
 
@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 if [ -z "$1" ]; then
     echo -e "${RED}Error: Version number required${NC}"
     echo "Usage: ./scripts/release.sh <version>"
-    echo "Example: ./scripts/release.sh 0.3.0"
+    echo "Example: ./scripts/release.sh 0.4.0"
     exit 1
 fi
 
@@ -48,8 +48,8 @@ sed -i "s/Value = \".*\"/Value = \"${VERSION}\"/" internal/version/version.go
 git add internal/version/version.go
 git commit -m "Bump version to ${VERSION}"
 
-# Build all platforms
-echo -e "${BLUE}Building all platforms...${NC}"
+# Build all official platforms
+echo -e "${BLUE}Building 6 official targets...${NC}"
 rm -rf build/*
 ./scripts/build.sh all
 
@@ -78,7 +78,7 @@ echo ""
 echo "2. Wait for GitHub Actions workflow '.github/workflows/release.yml' to run."
 echo "   It is triggered by pushing tag ${TAG}."
 echo ""
-echo "3. Release assets expected from CI:"
+echo "3. Release assets expected from CI (6 official targets):"
 ls -lh build/
 echo ""
 echo -e "${YELLOW}4. Optional manual GitHub CLI release command:${NC}"
