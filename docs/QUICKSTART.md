@@ -1,77 +1,128 @@
 # 快速开始
 
-## 目标
+## 1. 前置条件
 
-扫描一个目录树，准确输出：
+- Go 版本以 `go.mod` 为准
+- 当前工作目录位于仓库根目录
+- 如需真实写操作，请提前确认权限和目标对象
 
-- 最大的子目录
-- 最大的文件
+## 2. 先看帮助
 
-## 运行
-
-### 直接运行
+`syskit` 根命令默认显示帮助，不再兼容旧扫描行为：
 
 ```bash
-go run ./cmd/syskit D:\
+go run ./cmd/syskit --help
+go run ./cmd/syskit disk scan --help
 ```
 
-### 编译后运行
+## 3. 常用 P0 命令
+
+### 3.1 一键体检
 
 ```bash
-go build -o syskit ./cmd/syskit
-./syskit /home/user
+go run ./cmd/syskit doctor all --fail-on never
+go run ./cmd/syskit doctor all --fail-on never --format json
+```
+
+### 3.2 磁盘总览与目录扫描
+
+```bash
+go run ./cmd/syskit disk
+go run ./cmd/syskit disk --format json
+go run ./cmd/syskit disk scan . --limit 20
+go run ./cmd/syskit disk scan . --limit 50 --min-size 100MB --format json
+```
+
+说明：
+
+- 正式扫描入口只有 `disk scan`。
+- `limit/min-size/depth/exclude/export-csv` 都在 `disk scan` 下维护。
+
+### 3.3 端口与进程
+
+```bash
+go run ./cmd/syskit port list
+go run ./cmd/syskit port 8080
+go run ./cmd/syskit proc top --top 10
+go run ./cmd/syskit proc info 1234
+```
+
+危险操作默认 dry-run，真实执行必须显式确认：
+
+```bash
+go run ./cmd/syskit port kill 8080
+go run ./cmd/syskit port kill 8080 --apply --yes
+go run ./cmd/syskit proc kill 1234 --apply --yes
+```
+
+### 3.4 清理
+
+```bash
+go run ./cmd/syskit fix cleanup
+go run ./cmd/syskit fix cleanup --target temp --older-than 72h
+go run ./cmd/syskit fix cleanup --apply --yes --older-than 7d
+```
+
+### 3.5 快照与报告
+
+```bash
+go run ./cmd/syskit snapshot create --module port,cpu
+go run ./cmd/syskit snapshot list --limit 10
+go run ./cmd/syskit snapshot show <snapshot-id>
+go run ./cmd/syskit report generate --type health --format markdown
+```
+
+### 3.6 配置与策略
+
+```bash
+go run ./cmd/syskit policy show --type all
+go run ./cmd/syskit policy init --type config --output .syskit/config.yaml
+go run ./cmd/syskit policy validate .syskit/config.yaml --type config
+```
+
+## 4. 结构化输出
+
+所有 P0 命令共用统一输出协议：
+
+```bash
+go run ./cmd/syskit doctor all --fail-on never --format json
+go run ./cmd/syskit disk scan . --format json
+go run ./cmd/syskit snapshot list --format json
+```
+
+常用全局参数：
+
+- `--format table/json/markdown/csv`
+- `--output <path>`
+- `--config <path>`
+- `--policy <path>`
+- `--fail-on <critical/high/medium/low/never>`
+- `--dry-run` / `--apply` / `--yes`
+
+## 5. 本地验证
+
+推荐在开始或收尾时执行统一验证脚本：
+
+Linux/macOS:
+
+```bash
+./scripts/verify-p0.sh
 ```
 
 Windows:
 
 ```powershell
-go build -o syskit.exe ./cmd/syskit
-.\syskit.exe D:\
+scripts\verify-p0.bat
 ```
 
-## 常用示例
+脚本会执行：
 
-```bash
-# 返回前 20 个子目录和文件
-syskit D:\
+1. `go test ./...`
+2. 六个正式支持目标的交叉编译
+3. `--help`、`doctor all`、`disk`、`disk scan`、`snapshot list`、`policy validate` 等 smoke 命令
 
-# 返回前 50 个结果
-syskit --top 50 D:\
+## 6. 下一步
 
-# 排除依赖目录
-syskit --exclude node_modules,.git,vendor,target D:\
-
-# 只看文件
-syskit --include-dirs=false D:\
-
-# 只看子目录
-syskit --include-files=false D:\
-```
-
-## 导出
-
-```bash
-# JSON
-syskit --format json D:\ > result.json
-
-# CSV
-syskit --export-csv report D:\
-```
-
-会生成：
-
-- `report_dirs.csv`
-- `report_files.csv`
-
-## 本地 PowerShell 包装脚本
-
-```powershell
-scripts\find-largest-local.ps1 -Path D:\
-scripts\find-largest-local.ps1 -Path D:\ -Top 30
-```
-
-## 注意
-
-- 目录结果不包含根目录本身
-- 程序会跳过权限不足的条目
-- 程序会跳过符号链接，避免递归循环
+- 详细开发约定见 [开发说明](DEV_GUIDE.md)
+- 架构与设计取舍见 [设计说明](DESIGN.md)
+- 发布流程见 [发布说明](RELEASE_GUIDE.md)

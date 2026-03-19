@@ -35,7 +35,7 @@
 | `已开发` | 已完成实现并做过基本验证 |
 | `暂缓` | 暂不继续，等待重新排期 |
 
-当前整份清单状态：`开发中`
+当前整份清单状态：`已开发`
 
 ## 4. P0 范围边界
 
@@ -117,11 +117,11 @@
 | 顺序 | ID | 状态 | 需求项 | 关键交付 |
 |---|---|---|---|---|
 | 24 | `P0-024` | `已开发` | 补齐单元测试 | 覆盖配置合并、规则判断、评分逻辑、输出渲染、参数约束 |
-| 25 | `P0-025` | `待开发` | 补齐集成测试 | 覆盖 `doctor all`、`disk scan`、`port kill/proc kill/fix cleanup` dry-run 与 apply、`snapshot`、`policy validate` |
-| 26 | `P0-026` | `待开发` | 补齐契约测试与帮助校验 | 校验 JSON 字段、规则字段、CLI 帮助和命令树一致性 |
-| 27 | `P0-027` | `待开发` | 补齐命令帮助、示例与错误提示 | 满足 P0 DoD 中“命令帮助、示例、错误提示完整”的要求 |
-| 28 | `P0-028` | `待开发` | 完成三平台编译与 P0 核心命令验证 | 满足 Windows/Linux/macOS 三平台编译通过和 P0 验证要求 |
-| 29 | `P0-029` | `待开发` | 完成 P0 文档与发布基线收口 | 同步 README、快速开始、开发说明、构建与发布脚本、版本流程 |
+| 25 | `P0-025` | `已开发` | 补齐集成测试 | 覆盖 `doctor all`、`disk scan`、`port kill/proc kill/fix cleanup` dry-run 与 apply、`snapshot`、`policy validate` |
+| 26 | `P0-026` | `已开发` | 补齐契约测试与帮助校验 | 校验 JSON 字段、规则字段、CLI 帮助和命令树一致性 |
+| 27 | `P0-027` | `已开发` | 补齐命令帮助、示例与错误提示 | 满足 P0 DoD 中“命令帮助、示例、错误提示完整”的要求 |
+| 28 | `P0-028` | `已开发` | 完成三平台编译与 P0 核心命令验证 | 满足 Windows/Linux/macOS 三平台编译通过和 P0 验证要求 |
+| 29 | `P0-029` | `已开发` | 完成 P0 文档与发布基线收口 | 同步 README、快速开始、开发说明、构建与发布脚本、版本流程 |
 
 ## 7. 当前推荐开发顺序
 
@@ -168,6 +168,11 @@
 - 2026-03-18: `P0-022` 已开发，新增 `internal/audit` 审计模块并落地 JSONL 审计日志，接入 `port kill`、`proc kill`、`fix cleanup`、`snapshot delete` 的 apply 执行路径，记录 command/action/target/before/after/result/error/duration/metadata。
 - 2026-03-18: `P0-023` 已开发，统一错误降级输出协议：终端错误输出补充 `错误码`，并对 `permission_denied`、`timeout`、`unsupported` 输出标准化降级说明；同时补齐错误渲染与审计模块单元测试。
 - 2026-03-18: `P0-024` 已开发，补齐单元测试闭环：新增 `global` 参数优先级测试（命令行/环境变量/配置）、补充评分与规则边界/负例、扩展输出渲染路由与错误协议测试，并新增 `cpu/disk/doctor/fix/policy` 命令参数约束测试，验证命令：`go test ./...`。
+- 2026-03-19: `P0-025` 已开发，新增 `internal/cli` 黑盒集成测试 harness，补齐 `doctor all`、`disk scan`、`fix cleanup`、`snapshot`、`policy validate`、`proc kill`、`port kill` 的 dry-run/apply 集成测试与审计验证。
+- 2026-03-19: `P0-026` 已开发，新增 JSON envelope、规则字段、帮助文案和命令树路径的契约测试，确保字段只增不减且 CLI 规范与实现一致。
+- 2026-03-19: `P0-027` 已开发，根命令改为帮助优先，移除 legacy scan 入口与根级扫描 flags，补齐 P0 命令 `Long/Example`、危险操作说明，并注册 P1/P2 占位命令保持帮助树稳定。
+- 2026-03-19: `P0-028` 已开发，构建矩阵收窄为 6 个正式支持目标，新增 `scripts/verify-p0.(sh|bat)`，用于统一执行 `go test ./...`、六目标编译和核心 help/smoke 验证；当前 Windows 开发机已完成一次 `scripts\verify-p0.bat` 验证。
+- 2026-03-19: `P0-029` 已开发，收口 `README`、快速开始、开发/发布/设计说明、脚本说明与 P0 平台验证清单，并删除旧的 `scripts/find-largest-local.ps1`。
 - 2026-03-14: 目录结构已迁移为 `cmd/<binary> + internal/cli`，并同步更新构建脚本、发布脚本和架构文档。
 
 ## 9. 已确认事项
