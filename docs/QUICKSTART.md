@@ -43,6 +43,10 @@ go run ./cmd/syskit disk scan . --limit 50 --min-size 100MB --format json
 ```bash
 go run ./cmd/syskit port list
 go run ./cmd/syskit port 8080
+go run ./cmd/syskit port ping 127.0.0.1 8080 --count 3
+go run ./cmd/syskit port scan 127.0.0.1 --port 22,80,443
+go run ./cmd/syskit net conn --proto tcp --state established
+go run ./cmd/syskit net listen --proto tcp --addr 127.0.0.1
 go run ./cmd/syskit proc top --top 10
 go run ./cmd/syskit proc info 1234
 ```
