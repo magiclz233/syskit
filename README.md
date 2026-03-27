@@ -1,4 +1,4 @@
-# syskit
+﻿# syskit
 
 `syskit` 是一个跨平台本地系统运维 CLI，当前已完成 P0 阶段的诊断、扫描、清理、快照、报告和策略基线能力，并开始交付 P1 网络扩展能力。
 
@@ -20,7 +20,10 @@
 - `port scan <target>`
 - `net conn`
 - `net listen`
-
+- `dns resolve <domain>`
+- `dns bench <domain>`
+- `ping <target>`
+- `traceroute <target>`
 CLI 帮助树中其余 P1/P2 命令仍以占位形式保留，用于保持命令树、帮助文案和后续扩展路径稳定；未实现命令会明确返回“尚未开发”。
 
 ## 关键行为
@@ -139,3 +142,5 @@ syskit/
 - [发布说明](docs/RELEASE_GUIDE.md)
 - [脚本说明](scripts/README.md)
 - [P0 平台验证清单](docs/P0_PLATFORM_VERIFICATION.md)
+
+
