@@ -1,4 +1,4 @@
-package net
+﻿package net
 
 import (
 	"encoding/csv"
@@ -19,12 +19,20 @@ type listenPresenter struct {
 	result *netcollector.ListenResult
 }
 
+type speedPresenter struct {
+	result *netcollector.SpeedResult
+}
+
 func newConnPresenter(result *netcollector.ConnResult) *connPresenter {
 	return &connPresenter{result: result}
 }
 
 func newListenPresenter(result *netcollector.ListenResult) *listenPresenter {
 	return &listenPresenter{result: result}
+}
+
+func newSpeedPresenter(result *netcollector.SpeedResult) *speedPresenter {
+	return &speedPresenter{result: result}
 }
 
 func (p *connPresenter) RenderTable(w io.Writer) error {
@@ -218,6 +226,108 @@ func (p *listenPresenter) RenderCSV(w io.Writer, prefix string) error {
 		}); err != nil {
 			return errs.ExecutionFailed("写入 CSV 内容失败", err)
 		}
+	}
+	return nil
+}
+
+func (p *speedPresenter) RenderTable(w io.Writer) error {
+	if p.result == nil {
+		return emptyResultError("测速结果为空")
+	}
+	fmt.Fprintf(w, "测速服务: %s\n", p.result.Server)
+	fmt.Fprintf(w, "模式: %s, 总耗时: %.2fms\n", p.result.Mode, p.result.DurationMs)
+	if strings.TrimSpace(p.result.PublicIP) != "" {
+		fmt.Fprintf(w, "公网 IP: %s\n", p.result.PublicIP)
+	}
+	if p.result.Ping != nil {
+		fmt.Fprintf(
+			w,
+			"延迟(ms): min=%.2f avg=%.2f max=%.2f jitter=%.2f (loss=%.1f%%)\n",
+			p.result.Ping.MinMs,
+			p.result.Ping.AvgMs,
+			p.result.Ping.MaxMs,
+			p.result.Ping.JitterMs,
+			p.result.Ping.LossRate,
+		)
+	}
+	if p.result.Download != nil {
+		fmt.Fprintf(w, "下载: %.2f Mbps (bytes=%d, duration=%.2fms)\n", p.result.Download.Mbps, p.result.Download.Bytes, p.result.Download.DurationMs)
+	}
+	if p.result.Upload != nil {
+		fmt.Fprintf(w, "上传: %.2f Mbps (bytes=%d, duration=%.2fms)\n", p.result.Upload.Mbps, p.result.Upload.Bytes, p.result.Upload.DurationMs)
+	}
+	renderWarningsTable(w, p.result.Warnings)
+	return nil
+}
+
+func (p *speedPresenter) RenderMarkdown(w io.Writer) error {
+	if p.result == nil {
+		return emptyResultError("测速结果为空")
+	}
+	fmt.Fprintln(w, "# 带宽测速")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "- server: `%s`\n", mdCell(p.result.Server))
+	fmt.Fprintf(w, "- mode: `%s`\n", p.result.Mode)
+	fmt.Fprintf(w, "- duration_ms: `%.2f`\n", p.result.DurationMs)
+	if strings.TrimSpace(p.result.PublicIP) != "" {
+		fmt.Fprintf(w, "- public_ip: `%s`\n", mdCell(p.result.PublicIP))
+	}
+	if p.result.Ping != nil {
+		fmt.Fprintf(w, "- ping_avg_ms: `%.2f`\n", p.result.Ping.AvgMs)
+		fmt.Fprintf(w, "- ping_loss_rate: `%.1f%%`\n", p.result.Ping.LossRate)
+	}
+	if p.result.Download != nil {
+		fmt.Fprintf(w, "- download_mbps: `%.2f`\n", p.result.Download.Mbps)
+	}
+	if p.result.Upload != nil {
+		fmt.Fprintf(w, "- upload_mbps: `%.2f`\n", p.result.Upload.Mbps)
+	}
+	renderWarningsMarkdown(w, p.result.Warnings)
+	return nil
+}
+
+func (p *speedPresenter) RenderCSV(w io.Writer, prefix string) error {
+	if p.result == nil {
+		return emptyResultError("测速结果为空")
+	}
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	if err := writer.Write([]string{"server", "mode", "public_ip", "ping_avg_ms", "ping_loss_rate", "download_mbps", "download_bytes", "upload_mbps", "upload_bytes", "duration_ms"}); err != nil {
+		return errs.ExecutionFailed("写入 CSV 表头失败", err)
+	}
+	pingAvg := ""
+	pingLoss := ""
+	if p.result.Ping != nil {
+		pingAvg = fmt.Sprintf("%.2f", p.result.Ping.AvgMs)
+		pingLoss = fmt.Sprintf("%.1f", p.result.Ping.LossRate)
+	}
+	downMbps := ""
+	downBytes := ""
+	if p.result.Download != nil {
+		downMbps = fmt.Sprintf("%.2f", p.result.Download.Mbps)
+		downBytes = strconv.FormatInt(p.result.Download.Bytes, 10)
+	}
+	upMbps := ""
+	upBytes := ""
+	if p.result.Upload != nil {
+		upMbps = fmt.Sprintf("%.2f", p.result.Upload.Mbps)
+		upBytes = strconv.FormatInt(p.result.Upload.Bytes, 10)
+	}
+
+	if err := writer.Write([]string{
+		p.result.Server,
+		p.result.Mode,
+		p.result.PublicIP,
+		pingAvg,
+		pingLoss,
+		downMbps,
+		downBytes,
+		upMbps,
+		upBytes,
+		fmt.Sprintf("%.2f", p.result.DurationMs),
+	}); err != nil {
+		return errs.ExecutionFailed("写入 CSV 内容失败", err)
 	}
 	return nil
 }
