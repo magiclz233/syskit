@@ -6,14 +6,18 @@ import (
 	"strings"
 	"syskit/internal/cli/cpu"
 	"syskit/internal/cli/disk"
+	dnscmd "syskit/internal/cli/dns"
 	"syskit/internal/cli/doctor"
 	"syskit/internal/cli/fix"
 	"syskit/internal/cli/mem"
+	netcmd "syskit/internal/cli/net"
+	pingcmd "syskit/internal/cli/ping"
 	"syskit/internal/cli/policy"
 	"syskit/internal/cli/port"
 	"syskit/internal/cli/proc"
 	"syskit/internal/cli/report"
 	"syskit/internal/cli/snapshot"
+	traceroutecmd "syskit/internal/cli/traceroute"
 	"syskit/internal/config"
 	"syskit/internal/errs"
 	"syskit/internal/output"
@@ -71,8 +75,8 @@ func newApplication(version string) *application {
 	rootCmd := &cobra.Command{
 		Use:   "syskit",
 		Short: "跨平台本地系统运维 CLI 工具",
-		Long: "syskit 是一个跨平台本地系统运维 CLI 工具，当前已交付 P0 所需的诊断、扫描、清理、快照、报告和策略基线命令。" +
-			"\n\nP1/P2 命令已经在帮助树中预留为占位入口，便于脚本、文档和命令树保持一致；未实现命令会明确提示“尚未开发”。",
+		Long: "syskit 是一个跨平台本地系统运维 CLI 工具，当前已交付 P0 所需的诊断、扫描、清理、快照、报告和策略基线命令，并开始按清单逐步交付 P1 扩展能力。" +
+			"\n\nP1/P2 命令按开发清单逐步落地，未实现项会在帮助树中保留占位入口并明确提示“尚未开发”。",
 		Example: "  syskit doctor all --fail-on never\n" +
 			"  syskit disk scan /var/log --limit 20 --format json\n" +
 			"  syskit snapshot create --module port,cpu\n" +
@@ -102,6 +106,10 @@ func newApplication(version string) *application {
 	rootCmd.AddCommand(
 		doctor.NewCommand(),
 		port.NewCommand(),
+		dnscmd.NewCommand(),
+		netcmd.NewCommand(),
+		pingcmd.NewCommand(),
+		traceroutecmd.NewCommand(),
 		proc.NewCommand(),
 		cpu.NewCommand(),
 		mem.NewCommand(),
