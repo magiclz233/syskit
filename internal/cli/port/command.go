@@ -28,9 +28,25 @@ type listOptions struct {
 	detail   bool
 }
 
+type pingOptions struct {
+	count    int
+	interval time.Duration
+}
+
+type scanOptions struct {
+	portRange string
+	mode      string
+}
+
 type killOptions struct {
 	force    bool
 	killTree bool
+}
+
+const fullScanDefaultUpperPort = 1024
+
+var quickScanDefaultPorts = []int{
+	21, 22, 25, 53, 80, 110, 143, 443, 445, 587, 993, 995, 1433, 1521, 3306, 3389, 5432, 6379, 8080, 8443,
 }
 
 // killOutputData 是 `port kill` 的统一输出结构。
@@ -48,11 +64,13 @@ func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "port <port[,port]|range>",
 		Short: "端口查询与释放",
-		Long: "port 提供端口占用查询、监听列表查看和端口释放能力。" +
+		Long: "port 提供端口占用查询、监听列表、TCP 可达性测试、端口扫描和端口释放能力。" +
 			"\n\n`port kill` 属于写操作，正式执行前必须同时传入 `--apply --yes`。",
 		Example: "  syskit port 8080\n" +
 			"  syskit port 80,443,8080 --detail\n" +
-			"  syskit port list --protocol tcp --by pid",
+			"  syskit port list --protocol tcp --by pid\n" +
+			"  syskit port ping 127.0.0.1 8080 --count 3\n" +
+			"  syskit port scan 127.0.0.1 --port 22,80,443",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
@@ -65,6 +83,8 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&queryOpts.detail, "detail", false, "显示用户、命令行等详细字段")
 	cmd.AddCommand(
 		newListCommand(),
+		newPingCommand(),
+		newScanCommand(),
 		newKillCommand(),
 	)
 	return cmd
@@ -93,6 +113,55 @@ func newListCommand() *cobra.Command {
 	flags.StringVar(&opts.protocol, "protocol", "", "协议过滤: tcp/udp")
 	flags.StringVar(&opts.listen, "listen", "", "监听地址过滤（模糊匹配）")
 	flags.BoolVar(&opts.detail, "detail", false, "显示用户、命令行等详细字段")
+	return cmd
+}
+
+func newPingCommand() *cobra.Command {
+	opts := &pingOptions{
+		count:    4,
+		interval: 200 * time.Millisecond,
+	}
+
+	cmd := &cobra.Command{
+		Use:   "ping <target> <port>",
+		Short: "执行 TCP 端口可达性测试",
+		Long: "port ping 会对目标 TCP 端口执行多次建连探测，输出成功率与时延统计。" +
+			"\n\n`--timeout` 复用全局超时参数，同时作为单次探测超时；未设置时单次探测默认 1s。",
+		Example: "  syskit port ping 127.0.0.1 8080\n" +
+			"  syskit port ping db.internal 5432 --count 6 --interval 300ms\n" +
+			"  syskit port ping 10.0.0.12 22 --timeout 2s --format json",
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runPing(cmd, args[0], args[1], opts)
+		},
+	}
+
+	flags := cmd.Flags()
+	flags.IntVar(&opts.count, "count", 4, "探测次数")
+	flags.DurationVar(&opts.interval, "interval", 200*time.Millisecond, "探测间隔")
+	return cmd
+}
+
+func newScanCommand() *cobra.Command {
+	opts := &scanOptions{
+		mode: "quick",
+	}
+	cmd := &cobra.Command{
+		Use:   "scan <target>",
+		Short: "扫描目标开放端口",
+		Long: "port scan 对目标主机做 TCP 端口探测，默认 quick 模式扫描常见端口集合。" +
+			"\n\n`--mode full` 且未指定 `--port` 时，默认扫描 `1-1024`；`--timeout` 复用全局超时并作为单次探测超时。",
+		Example: "  syskit port scan 127.0.0.1\n" +
+			"  syskit port scan 10.0.0.12 --port 22,80,443,8080\n" +
+			"  syskit port scan db.internal --mode full --timeout 400ms --format json",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runScan(cmd, args[0], opts)
+		},
+	}
+	flags := cmd.Flags()
+	flags.StringVar(&opts.portRange, "port", "", "扫描端口表达式，例如 22,80,443,8080-8090")
+	flags.StringVar(&opts.mode, "mode", "quick", "扫描模式: quick/full")
 	return cmd
 }
 
@@ -172,6 +241,89 @@ func runList(cmd *cobra.Command, opts *listOptions) error {
 
 	result := output.NewSuccessResult("监听端口列表采集完成", resultData, startedAt)
 	return cliutil.RenderCommandResult(cmd, result, newListPresenter(resultData, opts.detail))
+}
+
+func runPing(cmd *cobra.Command, target string, portRaw string, opts *pingOptions) error {
+	if opts.count <= 0 {
+		return errs.InvalidArgument("--count 必须大于 0")
+	}
+	if opts.interval < 0 {
+		return errs.InvalidArgument("--interval 不能小于 0")
+	}
+
+	port, err := parseSinglePort(portRaw)
+	if err != nil {
+		return err
+	}
+	probeTimeout, err := resolveProbeTimeout(cmd, time.Second)
+	if err != nil {
+		return err
+	}
+
+	startedAt := time.Now()
+	ctx, cancel, err := cliutil.CommandContext(cmd)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	resultData, err := portcollector.PingPort(ctx, portcollector.PingOptions{
+		Target:   target,
+		Port:     port,
+		Count:    opts.count,
+		Timeout:  probeTimeout,
+		Interval: opts.interval,
+	})
+	if err != nil {
+		return err
+	}
+
+	msg := fmt.Sprintf("TCP 可达性测试完成（成功 %d/%d）", resultData.SuccessCount, resultData.Count)
+	if resultData.SuccessCount == 0 {
+		msg = "TCP 可达性测试完成，未命中可用连接"
+	}
+	result := output.NewSuccessResult(msg, resultData, startedAt)
+	return cliutil.RenderCommandResult(cmd, result, newPingPresenter(resultData))
+}
+
+func runScan(cmd *cobra.Command, target string, opts *scanOptions) error {
+	mode, err := portcollector.ParseScanMode(opts.mode)
+	if err != nil {
+		return err
+	}
+	ports, warnings, err := resolveScanPorts(mode, opts.portRange)
+	if err != nil {
+		return err
+	}
+	probeTimeout, err := resolveProbeTimeout(cmd, 500*time.Millisecond)
+	if err != nil {
+		return err
+	}
+
+	startedAt := time.Now()
+	ctx, cancel, err := cliutil.CommandContext(cmd)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	resultData, err := portcollector.ScanPorts(ctx, portcollector.ScanOptions{
+		Target:  target,
+		Mode:    mode,
+		Ports:   ports,
+		Timeout: probeTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	resultData.Warnings = append(resultData.Warnings, warnings...)
+
+	msg := fmt.Sprintf("端口扫描完成，发现 %d 个开放端口", resultData.OpenCount)
+	if resultData.OpenCount == 0 {
+		msg = "端口扫描完成，未发现开放端口"
+	}
+	result := output.NewSuccessResult(msg, resultData, startedAt)
+	return cliutil.RenderCommandResult(cmd, result, newScanPresenter(resultData))
 }
 
 func runKill(cmd *cobra.Command, portRaw string, opts *killOptions) error {
@@ -279,6 +431,48 @@ func parseSinglePort(raw string) (int, error) {
 		return 0, errs.InvalidArgument(fmt.Sprintf("无效端口: %s", raw))
 	}
 	return value, nil
+}
+
+func resolveProbeTimeout(cmd *cobra.Command, fallback time.Duration) (time.Duration, error) {
+	raw := strings.TrimSpace(cliutil.ResolveStringFlag(cmd, "timeout"))
+	if raw == "" || raw == "0" || raw == "0s" {
+		return fallback, nil
+	}
+	timeout, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, errs.InvalidArgument(fmt.Sprintf("无效的 --timeout: %s", raw))
+	}
+	if timeout <= 0 {
+		return fallback, nil
+	}
+	return timeout, nil
+}
+
+func resolveScanPorts(mode portcollector.ScanMode, rawPortRange string) ([]int, []string, error) {
+	rawPortRange = strings.TrimSpace(rawPortRange)
+	if rawPortRange != "" {
+		ports, err := portcollector.ParsePortExpression(rawPortRange)
+		if err != nil {
+			return nil, nil, err
+		}
+		return ports, nil, nil
+	}
+
+	switch mode {
+	case portcollector.ScanModeFull:
+		ports := make([]int, 0, fullScanDefaultUpperPort)
+		for port := 1; port <= fullScanDefaultUpperPort; port++ {
+			ports = append(ports, port)
+		}
+		return ports, []string{
+			fmt.Sprintf("未指定 --port，full 模式默认扫描 1-%d", fullScanDefaultUpperPort),
+		}, nil
+	default:
+		ports := append([]int(nil), quickScanDefaultPorts...)
+		return ports, []string{
+			"未指定 --port，quick 模式使用内置常见端口集合",
+		}, nil
+	}
 }
 
 func loadRuntimeConfig(cmd *cobra.Command) (*config.Config, error) {

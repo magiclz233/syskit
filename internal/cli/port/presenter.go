@@ -24,6 +24,14 @@ type killPresenter struct {
 	result *killOutputData
 }
 
+type pingPresenter struct {
+	result *portcollector.PingResult
+}
+
+type scanPresenter struct {
+	result *portcollector.ScanResult
+}
+
 func newQueryPresenter(result *portcollector.QueryResult, detail bool) *queryPresenter {
 	return &queryPresenter{result: result, detail: detail}
 }
@@ -34,6 +42,14 @@ func newListPresenter(result *portcollector.ListResult, detail bool) *listPresen
 
 func newKillPresenter(result *killOutputData) *killPresenter {
 	return &killPresenter{result: result}
+}
+
+func newPingPresenter(result *portcollector.PingResult) *pingPresenter {
+	return &pingPresenter{result: result}
+}
+
+func newScanPresenter(result *portcollector.ScanResult) *scanPresenter {
+	return &scanPresenter{result: result}
 }
 
 func (p *queryPresenter) RenderTable(w io.Writer) error {
@@ -261,6 +277,164 @@ func (p *killPresenter) RenderCSV(w io.Writer, prefix string) error {
 			target.ProcessName,
 			status,
 			message,
+		}); err != nil {
+			return errs.ExecutionFailed("写入 CSV 内容失败", err)
+		}
+	}
+	return nil
+}
+
+func (p *pingPresenter) RenderTable(w io.Writer) error {
+	if p.result == nil {
+		return emptyResultError("端口可达性结果为空")
+	}
+
+	fmt.Fprintf(w, "目标: %s:%d\n", p.result.Target, p.result.Port)
+	fmt.Fprintf(w, "探测次数: %d, 成功: %d, 失败: %d, 成功率: %.1f%%\n", p.result.Count, p.result.SuccessCount, p.result.FailureCount, p.result.SuccessRate)
+	fmt.Fprintf(w, "timeout: %dms, interval: %dms\n", p.result.TimeoutMs, p.result.IntervalMs)
+	if p.result.SuccessCount > 0 {
+		fmt.Fprintf(w, "时延统计(ms): min=%.2f avg=%.2f max=%.2f\n", p.result.MinLatencyMs, p.result.AvgLatencyMs, p.result.MaxLatencyMs)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "%-6s %-8s %-12s %s\n", "SEQ", "SUCCESS", "LATENCY_MS", "ERROR")
+	fmt.Fprintln(w, strings.Repeat("-", 80))
+	for _, item := range p.result.Attempts {
+		fmt.Fprintf(w, "%-6d %-8t %-12.2f %s\n", item.Seq, item.Success, item.LatencyMs, displayValue(item.Error, "-"))
+	}
+	renderWarningsTable(w, p.result.Warnings)
+	return nil
+}
+
+func (p *pingPresenter) RenderMarkdown(w io.Writer) error {
+	if p.result == nil {
+		return emptyResultError("端口可达性结果为空")
+	}
+	fmt.Fprintln(w, "# TCP 端口可达性测试")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "- target: `%s`\n", mdCell(p.result.Target))
+	fmt.Fprintf(w, "- port: `%d`\n", p.result.Port)
+	fmt.Fprintf(w, "- count: `%d`\n", p.result.Count)
+	fmt.Fprintf(w, "- success_count: `%d`\n", p.result.SuccessCount)
+	fmt.Fprintf(w, "- failure_count: `%d`\n", p.result.FailureCount)
+	fmt.Fprintf(w, "- success_rate: `%.1f%%`\n", p.result.SuccessRate)
+	fmt.Fprintf(w, "- timeout_ms: `%d`\n", p.result.TimeoutMs)
+	fmt.Fprintf(w, "- interval_ms: `%d`\n", p.result.IntervalMs)
+	if p.result.SuccessCount > 0 {
+		fmt.Fprintf(w, "- latency_min_ms: `%.2f`\n", p.result.MinLatencyMs)
+		fmt.Fprintf(w, "- latency_avg_ms: `%.2f`\n", p.result.AvgLatencyMs)
+		fmt.Fprintf(w, "- latency_max_ms: `%.2f`\n", p.result.MaxLatencyMs)
+	}
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "| SEQ | SUCCESS | LATENCY_MS | ERROR |")
+	fmt.Fprintln(w, "|---|---|---|---|")
+	for _, item := range p.result.Attempts {
+		fmt.Fprintf(w, "| %d | %t | %.2f | %s |\n", item.Seq, item.Success, item.LatencyMs, mdCell(displayValue(item.Error, "-")))
+	}
+	renderWarningsMarkdown(w, p.result.Warnings)
+	return nil
+}
+
+func (p *pingPresenter) RenderCSV(w io.Writer, prefix string) error {
+	if p.result == nil {
+		return emptyResultError("端口可达性结果为空")
+	}
+
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	if err := writer.Write([]string{
+		"target",
+		"port",
+		"seq",
+		"success",
+		"latency_ms",
+		"error",
+	}); err != nil {
+		return errs.ExecutionFailed("写入 CSV 表头失败", err)
+	}
+	for _, item := range p.result.Attempts {
+		if err := writer.Write([]string{
+			p.result.Target,
+			strconv.Itoa(p.result.Port),
+			strconv.Itoa(item.Seq),
+			strconv.FormatBool(item.Success),
+			fmt.Sprintf("%.2f", item.LatencyMs),
+			item.Error,
+		}); err != nil {
+			return errs.ExecutionFailed("写入 CSV 内容失败", err)
+		}
+	}
+	return nil
+}
+
+func (p *scanPresenter) RenderTable(w io.Writer) error {
+	if p.result == nil {
+		return emptyResultError("端口扫描结果为空")
+	}
+
+	fmt.Fprintf(w, "目标: %s\n", p.result.Target)
+	fmt.Fprintf(w, "模式: %s, 总端口: %d, 开放: %d, 关闭: %d\n", p.result.Mode, p.result.TotalPorts, p.result.OpenCount, p.result.ClosedCount)
+	fmt.Fprintf(w, "timeout: %dms\n", p.result.TimeoutMs)
+	fmt.Fprintf(w, "开放端口: %s\n", formatIntList(p.result.OpenPorts))
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "%-8s %-8s %-12s %s\n", "PORT", "OPEN", "LATENCY_MS", "ERROR")
+	fmt.Fprintln(w, strings.Repeat("-", 80))
+	for _, item := range p.result.Results {
+		fmt.Fprintf(w, "%-8d %-8t %-12.2f %s\n", item.Port, item.Open, item.LatencyMs, displayValue(item.Error, "-"))
+	}
+	renderWarningsTable(w, p.result.Warnings)
+	return nil
+}
+
+func (p *scanPresenter) RenderMarkdown(w io.Writer) error {
+	if p.result == nil {
+		return emptyResultError("端口扫描结果为空")
+	}
+
+	fmt.Fprintln(w, "# 端口扫描")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "- target: `%s`\n", mdCell(p.result.Target))
+	fmt.Fprintf(w, "- mode: `%s`\n", p.result.Mode)
+	fmt.Fprintf(w, "- total_ports: `%d`\n", p.result.TotalPorts)
+	fmt.Fprintf(w, "- open_count: `%d`\n", p.result.OpenCount)
+	fmt.Fprintf(w, "- closed_count: `%d`\n", p.result.ClosedCount)
+	fmt.Fprintf(w, "- timeout_ms: `%d`\n", p.result.TimeoutMs)
+	fmt.Fprintf(w, "- open_ports: `%s`\n", formatIntList(p.result.OpenPorts))
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "| PORT | OPEN | LATENCY_MS | ERROR |")
+	fmt.Fprintln(w, "|---|---|---|---|")
+	for _, item := range p.result.Results {
+		fmt.Fprintf(w, "| %d | %t | %.2f | %s |\n", item.Port, item.Open, item.LatencyMs, mdCell(displayValue(item.Error, "-")))
+	}
+	renderWarningsMarkdown(w, p.result.Warnings)
+	return nil
+}
+
+func (p *scanPresenter) RenderCSV(w io.Writer, prefix string) error {
+	if p.result == nil {
+		return emptyResultError("端口扫描结果为空")
+	}
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+
+	if err := writer.Write([]string{
+		"target",
+		"mode",
+		"port",
+		"open",
+		"latency_ms",
+		"error",
+	}); err != nil {
+		return errs.ExecutionFailed("写入 CSV 表头失败", err)
+	}
+	for _, item := range p.result.Results {
+		if err := writer.Write([]string{
+			p.result.Target,
+			p.result.Mode,
+			strconv.Itoa(item.Port),
+			strconv.FormatBool(item.Open),
+			fmt.Sprintf("%.2f", item.LatencyMs),
+			item.Error,
 		}); err != nil {
 			return errs.ExecutionFailed("写入 CSV 内容失败", err)
 		}
