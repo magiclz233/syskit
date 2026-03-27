@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"syskit/internal/errs"
+	"time"
 )
 
 // Protocol 表示传输层协议。
@@ -17,6 +18,16 @@ const (
 	ProtocolTCP Protocol = "tcp"
 	// ProtocolUDP 表示 UDP。
 	ProtocolUDP Protocol = "udp"
+)
+
+// ScanMode 表示端口扫描模式。
+type ScanMode string
+
+const (
+	// ScanModeQuick 只扫描常见端口集合。
+	ScanModeQuick ScanMode = "quick"
+	// ScanModeFull 扫描完整端口范围。
+	ScanModeFull ScanMode = "full"
 )
 
 // ParseProtocol 解析协议过滤参数。
@@ -44,6 +55,20 @@ func ParseSortBy(raw string) (string, error) {
 		return normalized, nil
 	default:
 		return "", errs.InvalidArgument(fmt.Sprintf("--by 仅支持 pid/port，当前为: %s", raw))
+	}
+}
+
+// ParseScanMode 解析 `port scan --mode` 参数。
+func ParseScanMode(raw string) (ScanMode, error) {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	if normalized == "" {
+		return ScanModeQuick, nil
+	}
+	switch ScanMode(normalized) {
+	case ScanModeQuick, ScanModeFull:
+		return ScanMode(normalized), nil
+	default:
+		return "", errs.InvalidArgument(fmt.Sprintf("--mode 仅支持 quick/full，当前为: %s", raw))
 	}
 }
 
@@ -195,4 +220,67 @@ type KillResult struct {
 	ProcessResult []KillProcessResult `json:"process_result"`
 	Remaining     []PortEntry         `json:"remaining,omitempty"`
 	Warnings      []string            `json:"warnings,omitempty"`
+}
+
+// PingOptions 是 `port ping` 参数集合。
+type PingOptions struct {
+	Target   string
+	Port     int
+	Count    int
+	Timeout  time.Duration
+	Interval time.Duration
+}
+
+// PingAttempt 表示单次 TCP 可达性探测结果。
+type PingAttempt struct {
+	Seq       int     `json:"seq"`
+	Success   bool    `json:"success"`
+	LatencyMs float64 `json:"latency_ms"`
+	Error     string  `json:"error,omitempty"`
+}
+
+// PingResult 是 `port ping` 输出结构。
+type PingResult struct {
+	Target       string        `json:"target"`
+	Port         int           `json:"port"`
+	Count        int           `json:"count"`
+	TimeoutMs    int64         `json:"timeout_ms"`
+	IntervalMs   int64         `json:"interval_ms"`
+	SuccessCount int           `json:"success_count"`
+	FailureCount int           `json:"failure_count"`
+	SuccessRate  float64       `json:"success_rate"`
+	AvgLatencyMs float64       `json:"avg_latency_ms"`
+	MinLatencyMs float64       `json:"min_latency_ms"`
+	MaxLatencyMs float64       `json:"max_latency_ms"`
+	Attempts     []PingAttempt `json:"attempts"`
+	Warnings     []string      `json:"warnings,omitempty"`
+}
+
+// ScanOptions 是 `port scan` 参数集合。
+type ScanOptions struct {
+	Target  string
+	Mode    ScanMode
+	Ports   []int
+	Timeout time.Duration
+}
+
+// ScanPortResult 表示单个端口的扫描结果。
+type ScanPortResult struct {
+	Port      int     `json:"port"`
+	Open      bool    `json:"open"`
+	LatencyMs float64 `json:"latency_ms,omitempty"`
+	Error     string  `json:"error,omitempty"`
+}
+
+// ScanResult 是 `port scan` 输出结构。
+type ScanResult struct {
+	Target      string           `json:"target"`
+	Mode        string           `json:"mode"`
+	TotalPorts  int              `json:"total_ports"`
+	OpenCount   int              `json:"open_count"`
+	ClosedCount int              `json:"closed_count"`
+	OpenPorts   []int            `json:"open_ports"`
+	Results     []ScanPortResult `json:"results"`
+	TimeoutMs   int64            `json:"timeout_ms"`
+	Warnings    []string         `json:"warnings,omitempty"`
 }
