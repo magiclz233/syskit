@@ -22,14 +22,6 @@ func registerPendingCommands(rootCmd *cobra.Command) {
 		)
 	}
 
-	portCmd := findCommand(rootCmd, "port")
-	if portCmd != nil {
-		portCmd.AddCommand(
-			cliutil.NewPendingCommand("ping <target> <port>", "执行 TCP 端口可达性测试"),
-			cliutil.NewPendingCommand("scan <target>", "扫描目标开放端口"),
-		)
-	}
-
 	cpuCmd := findCommand(rootCmd, "cpu")
 	if cpuCmd != nil {
 		cpuCmd.AddCommand(
@@ -62,25 +54,7 @@ func registerPendingCommands(rootCmd *cobra.Command) {
 			cliutil.NewPendingCommand("dedup <path>", "清理重复文件"),
 			cliutil.NewPendingCommand("archive <path>", "归档旧日志或历史文件"),
 			cliutil.NewPendingCommand("empty <path>", "清理空目录"),
-		),
-		newPendingGroupCommand(
-			"net",
-			"网络诊断命令",
-			"net 命令组已在 CLI 规范中保留，用于连接审计、监听检查和带宽测速。",
-			cliutil.NewPendingCommand("conn", "审计当前网络连接"),
-			cliutil.NewPendingCommand("listen", "查看监听端口和地址"),
-			cliutil.NewPendingCommand("speed", "执行带宽测速"),
-		),
-		newPendingGroupCommand(
-			"dns",
-			"DNS 诊断命令",
-			"dns 命令组已在 CLI 规范中保留，用于 DNS 解析和性能测试。",
-			cliutil.NewPendingCommand("resolve <domain>", "解析指定域名"),
-			cliutil.NewPendingCommand("bench <domain>", "测试 DNS 响应性能"),
-		),
-		cliutil.NewPendingCommand("ping <target>", "执行 ICMP Ping 测试"),
-		cliutil.NewPendingCommand("traceroute <target>", "执行路由跟踪"),
-		newPendingGroupCommand(
+		), newPendingGroupCommand(
 			"service",
 			"服务管理命令",
 			"service 命令组已在 CLI 规范中保留，用于跨平台服务查看与运维。",
