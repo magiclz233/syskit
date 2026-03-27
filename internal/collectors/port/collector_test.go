@@ -54,4 +54,11 @@ func TestParseProtocolAndSortBy(t *testing.T) {
 	if _, err := ParseSortBy("name"); err == nil {
 		t.Fatalf("ParseSortBy should fail for name")
 	}
+
+	if got, err := ParseScanMode("full"); err != nil || got != ScanModeFull {
+		t.Fatalf("ParseScanMode full failed, got=%v err=%v", got, err)
+	}
+	if _, err := ParseScanMode("deep"); err == nil {
+		t.Fatalf("ParseScanMode should fail for deep")
+	}
 }
