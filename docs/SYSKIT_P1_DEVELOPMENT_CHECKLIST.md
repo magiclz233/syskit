@@ -1,4 +1,4 @@
-# syskit P1 开发需求清单
+﻿# syskit P1 开发需求清单
 
 ## 1. 文档目的
 
@@ -69,8 +69,8 @@
 | 1 | `P1-001` | `已开发` | 实现 `port ping` | 支持 TCP 端口可达性测试、`--count/--timeout/--interval`、统一输出 |
 | 2 | `P1-002` | `已开发` | 实现 `port scan` | 支持端口范围扫描、`--port/--mode/--timeout`、开放端口清单 |
 | 3 | `P1-003` | `已开发` | 实现 `net conn/listen` | 提供连接审计与监听列表（与 `port` 能力形成互补） |
-| 4 | `P1-004` | `待开发` | 实现 `dns resolve/bench` | 支持基础解析与 DNS 响应延迟基准测试 |
-| 5 | `P1-005` | `待开发` | 实现 `ping/traceroute` | 支持主机连通性与路由链路诊断 |
+| 4 | `P1-004` | `已开发` | 实现 `dns resolve/bench` | 支持基础解析与 DNS 响应延迟基准测试 |
+| 5 | `P1-005` | `已开发` | 实现 `ping/traceroute` | 支持主机连通性与路由链路诊断 |
 | 6 | `P1-006` | `待开发` | 实现 `net speed` | 落地可解释的带宽测速流程与结果输出 |
 | 7 | `P1-007` | `待开发` | 实现 `doctor network` | 打通网络专项采集、规则评估、退出码和降级协议 |
 | 8 | `P1-008` | `待开发` | 实现 `doctor disk-full/slowness` | 落地场景化诊断编排与建议输出 |
@@ -143,9 +143,13 @@
 - 2026-03-27: `P1-001` 已开发，`port ping` 从占位命令升级为正式命令，支持 `--count/--interval/--timeout` 参数，补齐 table/json/markdown/csv 输出与单元测试。
 - 2026-03-27: `P1-002` 已开发，`port scan` 从占位命令升级为正式命令，支持 `--port/--mode/--timeout` 参数、quick/full 默认端口策略与扫描结果汇总，并补齐单元测试。
 - 2026-03-27: `P1-003` 已开发，新增 `net` 命令组并正式交付 `net conn`、`net listen`，支持 `--pid/--state/--proto/--remote` 与 `--proto/--addr` 过滤，`net speed` 保持占位，补齐命令与采集器单元测试。
+- 2026-03-27: `P1-004` 已开发，新增 `dns` 命令组并正式交付 `dns resolve`、`dns bench`，支持 `--type/--dns/--count/--timeout` 参数、结构化结果与时延统计，并补齐命令与采集器单元测试。
+- 2026-03-27: `P1-005` 已开发，新增正式命令 `ping`、`traceroute`，落地跨平台系统命令探测、table/json/markdown/csv 输出与命令/采集器单元测试。
 
 ## 9. 已确认事项
 
 1. 本清单作为 P1 唯一开发顺序文档使用。
 2. 默认按本文档顺序逐项开发，不随意跳项。
 3. 已完成项必须同步更新状态和开发记录。
+
+

@@ -1,4 +1,4 @@
-# 快速开始
+﻿# 快速开始
 
 ## 1. 前置条件
 
@@ -47,6 +47,10 @@ go run ./cmd/syskit port ping 127.0.0.1 8080 --count 3
 go run ./cmd/syskit port scan 127.0.0.1 --port 22,80,443
 go run ./cmd/syskit net conn --proto tcp --state established
 go run ./cmd/syskit net listen --proto tcp --addr 127.0.0.1
+go run ./cmd/syskit dns resolve localhost --type A
+go run ./cmd/syskit dns bench localhost --count 3 --type A
+go run ./cmd/syskit ping localhost --count 2
+go run ./cmd/syskit traceroute localhost --max-hops 5
 go run ./cmd/syskit proc top --top 10
 go run ./cmd/syskit proc info 1234
 ```
@@ -130,3 +134,5 @@ scripts\verify-p0.bat
 - 详细开发约定见 [开发说明](DEV_GUIDE.md)
 - 架构与设计取舍见 [设计说明](DESIGN.md)
 - 发布流程见 [发布说明](RELEASE_GUIDE.md)
+
+
