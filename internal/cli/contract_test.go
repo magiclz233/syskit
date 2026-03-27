@@ -1,4 +1,4 @@
-package cli
+﻿package cli
 
 import (
 	"reflect"
@@ -143,6 +143,7 @@ func TestImplementedCommandsHaveLongAndExample(t *testing.T) {
 		{"net"},
 		{"net", "conn"},
 		{"net", "listen"},
+		{"net", "speed"},
 		{"ping"},
 		{"traceroute"},
 		{"proc"},
@@ -267,3 +268,5 @@ func assertJSONFieldSet(t *testing.T, value any, expected []string) {
 		t.Fatalf("%s json fields mismatch\nwant: %v\ngot:  %v", typ.Name(), expected, got)
 	}
 }
+
+

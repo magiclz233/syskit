@@ -1,4 +1,4 @@
-package net
+﻿package net
 
 import (
 	"testing"
@@ -26,6 +26,23 @@ func TestRunListenRejectsInvalidProtocol(t *testing.T) {
 	err := runListen(&cobra.Command{}, &listenOptions{proto: "icmp"})
 	if err == nil {
 		t.Fatalf("expected error, got nil")
+	}
+}
+
+func TestRunSpeedRejectsInvalidMode(t *testing.T) {
+	err := runSpeed(&cobra.Command{}, &speedOptions{mode: "mixed"})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+}
+
+func TestResolveSpeedTimeoutRejectsInvalid(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("timeout", "", "timeout")
+	if err := cmd.Flags().Set("timeout", "bad"); err == nil {
+		if _, parseErr := resolveSpeedTimeout(cmd); parseErr == nil {
+			t.Fatalf("expected parse error, got nil")
+		}
 	}
 }
 
