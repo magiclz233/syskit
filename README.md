@@ -14,21 +14,18 @@
 - `report generate`
 - `policy show/init/validate`
 
-<<<<<<< HEAD
 当前已落地的 P1 命令包括：
 
 - `port ping <target> <port>`
 - `port scan <target>`
 - `net conn`
 - `net listen`
+- `net speed`
 - `dns resolve <domain>`
 - `dns bench <domain>`
 - `ping <target>`
 - `traceroute <target>`
 CLI 帮助树中其余 P1/P2 命令仍以占位形式保留，用于保持命令树、帮助文案和后续扩展路径稳定；未实现命令会明确返回“尚未开发”。
-=======
-CLI 帮助树中同时注册了 P1/P2 占位命令，用于保持命令树、帮助文案和后续扩展路径稳定；这些命令当前会明确返回"尚未开发"。
->>>>>>> baac22bf30f650f757589e8fbf00d92c3c57b515
 
 ## 关键行为
 
