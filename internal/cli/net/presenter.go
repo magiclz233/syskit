@@ -1,4 +1,4 @@
-﻿package net
+package net
 
 import (
 	"encoding/csv"
@@ -239,6 +239,14 @@ func (p *speedPresenter) RenderTable(w io.Writer) error {
 	if strings.TrimSpace(p.result.PublicIP) != "" {
 		fmt.Fprintf(w, "公网 IP: %s\n", p.result.PublicIP)
 	}
+	if p.result.Trace != nil {
+		if strings.TrimSpace(p.result.Trace.Operator) != "" {
+			fmt.Fprintf(w, "运营商: %s\n", p.result.Trace.Operator)
+		}
+		if strings.TrimSpace(p.result.Trace.Location) != "" || strings.TrimSpace(p.result.Trace.Colo) != "" {
+			fmt.Fprintf(w, "出口位置: loc=%s colo=%s\n", displayValue(p.result.Trace.Location, "-"), displayValue(p.result.Trace.Colo, "-"))
+		}
+	}
 	if p.result.Ping != nil {
 		fmt.Fprintf(
 			w,
@@ -256,6 +264,30 @@ func (p *speedPresenter) RenderTable(w io.Writer) error {
 	if p.result.Upload != nil {
 		fmt.Fprintf(w, "上传: %.2f Mbps (bytes=%d, duration=%.2fms)\n", p.result.Upload.Mbps, p.result.Upload.Bytes, p.result.Upload.DurationMs)
 	}
+	if p.result.Assessment != nil {
+		fmt.Fprintln(w, "\n结论")
+		fmt.Fprintln(w, strings.Repeat("-", 80))
+		fmt.Fprintln(w, displayValue(p.result.Assessment.Summary, "已完成测速"))
+		for _, item := range p.result.Assessment.Highlights {
+			fmt.Fprintf(w, "- %s\n", item)
+		}
+	}
+	if len(p.result.Phases) > 0 {
+		fmt.Fprintln(w, "\n阶段")
+		fmt.Fprintln(w, strings.Repeat("-", 80))
+		fmt.Fprintf(w, "%-10s %-8s %-12s %-12s %s\n", "STAGE", "STATUS", "DURATION", "MBPS", "DETAIL")
+		for _, item := range p.result.Phases {
+			fmt.Fprintf(
+				w,
+				"%-10s %-8s %-12s %-12s %s\n",
+				item.Name,
+				item.Status,
+				fmt.Sprintf("%.2fms", item.DurationMs),
+				displaySpeedValue(item.Mbps),
+				compact(displayValue(item.Detail, "-"), 60),
+			)
+		}
+	}
 	renderWarningsTable(w, p.result.Warnings)
 	return nil
 }
@@ -272,6 +304,17 @@ func (p *speedPresenter) RenderMarkdown(w io.Writer) error {
 	if strings.TrimSpace(p.result.PublicIP) != "" {
 		fmt.Fprintf(w, "- public_ip: `%s`\n", mdCell(p.result.PublicIP))
 	}
+	if p.result.Trace != nil {
+		if strings.TrimSpace(p.result.Trace.Operator) != "" {
+			fmt.Fprintf(w, "- operator: `%s`\n", mdCell(p.result.Trace.Operator))
+		}
+		if strings.TrimSpace(p.result.Trace.Location) != "" {
+			fmt.Fprintf(w, "- location: `%s`\n", mdCell(p.result.Trace.Location))
+		}
+		if strings.TrimSpace(p.result.Trace.Colo) != "" {
+			fmt.Fprintf(w, "- colo: `%s`\n", mdCell(p.result.Trace.Colo))
+		}
+	}
 	if p.result.Ping != nil {
 		fmt.Fprintf(w, "- ping_avg_ms: `%.2f`\n", p.result.Ping.AvgMs)
 		fmt.Fprintf(w, "- ping_loss_rate: `%.1f%%`\n", p.result.Ping.LossRate)
@@ -281,6 +324,35 @@ func (p *speedPresenter) RenderMarkdown(w io.Writer) error {
 	}
 	if p.result.Upload != nil {
 		fmt.Fprintf(w, "- upload_mbps: `%.2f`\n", p.result.Upload.Mbps)
+	}
+	if p.result.Assessment != nil {
+		fmt.Fprintf(w, "- assessment: `%s`\n", mdCell(displayValue(p.result.Assessment.Summary, "已完成测速")))
+	}
+	if len(p.result.Phases) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "## 阶段")
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "| STAGE | STATUS | DURATION_MS | MBPS | DETAIL |")
+		fmt.Fprintln(w, "|---|---|---|---|---|")
+		for _, item := range p.result.Phases {
+			fmt.Fprintf(
+				w,
+				"| %s | %s | %.2f | %s | %s |\n",
+				mdCell(item.Name),
+				mdCell(item.Status),
+				item.DurationMs,
+				mdCell(displaySpeedValue(item.Mbps)),
+				mdCell(displayValue(item.Detail, "-")),
+			)
+		}
+	}
+	if p.result.Assessment != nil && len(p.result.Assessment.Highlights) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "## 结论")
+		fmt.Fprintln(w)
+		for _, item := range p.result.Assessment.Highlights {
+			fmt.Fprintf(w, "- %s\n", item)
+		}
 	}
 	renderWarningsMarkdown(w, p.result.Warnings)
 	return nil
@@ -293,7 +365,7 @@ func (p *speedPresenter) RenderCSV(w io.Writer, prefix string) error {
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	if err := writer.Write([]string{"server", "mode", "public_ip", "ping_avg_ms", "ping_loss_rate", "download_mbps", "download_bytes", "upload_mbps", "upload_bytes", "duration_ms"}); err != nil {
+	if err := writer.Write([]string{"server", "mode", "public_ip", "operator", "location", "colo", "ping_avg_ms", "ping_loss_rate", "download_mbps", "download_bytes", "upload_mbps", "upload_bytes", "duration_ms", "assessment_summary", "phase_summary"}); err != nil {
 		return errs.ExecutionFailed("写入 CSV 表头失败", err)
 	}
 	pingAvg := ""
@@ -314,11 +386,26 @@ func (p *speedPresenter) RenderCSV(w io.Writer, prefix string) error {
 		upMbps = fmt.Sprintf("%.2f", p.result.Upload.Mbps)
 		upBytes = strconv.FormatInt(p.result.Upload.Bytes, 10)
 	}
+	operator := ""
+	location := ""
+	colo := ""
+	if p.result.Trace != nil {
+		operator = p.result.Trace.Operator
+		location = p.result.Trace.Location
+		colo = p.result.Trace.Colo
+	}
+	assessmentSummary := ""
+	if p.result.Assessment != nil {
+		assessmentSummary = p.result.Assessment.Summary
+	}
 
 	if err := writer.Write([]string{
 		p.result.Server,
 		p.result.Mode,
 		p.result.PublicIP,
+		operator,
+		location,
+		colo,
 		pingAvg,
 		pingLoss,
 		downMbps,
@@ -326,6 +413,8 @@ func (p *speedPresenter) RenderCSV(w io.Writer, prefix string) error {
 		upMbps,
 		upBytes,
 		fmt.Sprintf("%.2f", p.result.DurationMs),
+		assessmentSummary,
+		joinPhaseSummary(p.result.Phases),
 	}); err != nil {
 		return errs.ExecutionFailed("写入 CSV 内容失败", err)
 	}
@@ -376,6 +465,24 @@ func mdCell(value string) string {
 	value = strings.ReplaceAll(value, "|", "\\|")
 	value = strings.ReplaceAll(value, "\n", " ")
 	return value
+}
+
+func displaySpeedValue(value float64) string {
+	if value <= 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.2f", value)
+}
+
+func joinPhaseSummary(phases []netcollector.SpeedPhase) string {
+	if len(phases) == 0 {
+		return ""
+	}
+	items := make([]string, 0, len(phases))
+	for _, item := range phases {
+		items = append(items, fmt.Sprintf("%s:%s:%.2fms", item.Name, item.Status, item.DurationMs))
+	}
+	return strings.Join(items, ";")
 }
 
 func emptyResultError(message string) error {
