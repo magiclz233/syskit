@@ -47,6 +47,8 @@ go run ./cmd/syskit port ping 127.0.0.1 8080 --count 3
 go run ./cmd/syskit port scan 127.0.0.1 --port 22,80,443
 go run ./cmd/syskit net conn --proto tcp --state established
 go run ./cmd/syskit net listen --proto tcp --addr 127.0.0.1
+go run ./cmd/syskit net speed --mode full --verbose
+go run ./cmd/syskit net speed --server https://speed.cloudflare.com --mode download
 go run ./cmd/syskit dns resolve localhost --type A
 go run ./cmd/syskit dns bench localhost --count 3 --type A
 go run ./cmd/syskit ping localhost --count 2
