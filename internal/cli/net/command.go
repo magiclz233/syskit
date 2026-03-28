@@ -1,4 +1,4 @@
-﻿// Package net 负责网络连接审计与监听列表命令。
+// Package net 负责网络连接审计与监听列表命令。
 package net
 
 import (
@@ -208,10 +208,21 @@ func runSpeed(cmd *cobra.Command, opts *speedOptions) error {
 	}
 	defer cancel()
 
+	var progress func(netcollector.SpeedProgressEvent)
+	if cliutil.ResolveBoolFlag(cmd, "verbose") {
+		progress = func(event netcollector.SpeedProgressEvent) {
+			if strings.TrimSpace(event.Message) == "" {
+				return
+			}
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "[net speed] %s: %s\n", event.Stage, event.Message)
+		}
+	}
+
 	resultData, err := netcollector.CollectSpeed(ctx, netcollector.SpeedOptions{
-		Server:  strings.TrimSpace(opts.server),
-		Mode:    mode,
-		Timeout: timeout,
+		Server:   strings.TrimSpace(opts.server),
+		Mode:     mode,
+		Timeout:  timeout,
+		Progress: progress,
 	})
 	if err != nil {
 		return err
@@ -262,6 +273,15 @@ func buildSpeedMessage(result *netcollector.SpeedResult) string {
 		}
 		if result.Ping != nil {
 			ping = result.Ping.AvgMs
+		}
+		if result.Assessment != nil && strings.TrimSpace(result.Assessment.Summary) != "" {
+			return fmt.Sprintf(
+				"带宽测速完成，download=%.2f Mbps upload=%.2f Mbps ping=%.2f ms，结论：%s",
+				down,
+				up,
+				ping,
+				result.Assessment.Summary,
+			)
 		}
 		return fmt.Sprintf("带宽测速完成，download=%.2f Mbps upload=%.2f Mbps ping=%.2f ms", down, up, ping)
 	}

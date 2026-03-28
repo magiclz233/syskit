@@ -1,7 +1,10 @@
-﻿package net
+package net
 
 import (
+	"strings"
 	"testing"
+
+	netcollector "syskit/internal/collectors/net"
 
 	"github.com/spf13/cobra"
 )
@@ -43,6 +46,25 @@ func TestResolveSpeedTimeoutRejectsInvalid(t *testing.T) {
 		if _, parseErr := resolveSpeedTimeout(cmd); parseErr == nil {
 			t.Fatalf("expected parse error, got nil")
 		}
+	}
+}
+
+func TestBuildSpeedMessageIncludesAssessmentSummary(t *testing.T) {
+	message := buildSpeedMessage(&netcollector.SpeedResult{
+		Mode: string(netcollector.SpeedModeFull),
+		Ping: &netcollector.SpeedPingStats{AvgMs: 12.3},
+		Download: &netcollector.SpeedSample{
+			Mbps: 88.8,
+		},
+		Upload: &netcollector.SpeedSample{
+			Mbps: 22.2,
+		},
+		Assessment: &netcollector.SpeedAssessment{
+			Summary: "延迟良好；下载带宽良好；上传带宽一般",
+		},
+	})
+	if !strings.Contains(message, "结论：延迟良好") {
+		t.Fatalf("message should include assessment summary, got %q", message)
 	}
 }
 
