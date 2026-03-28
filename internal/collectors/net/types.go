@@ -1,4 +1,4 @@
-﻿// Package net 提供网络连接审计、监听列表和带宽测速能力。
+// Package net 提供网络连接审计、监听列表和带宽测速能力。
 package net
 
 import (
@@ -89,6 +89,9 @@ type SpeedOptions struct {
 	Server  string
 	Mode    SpeedMode
 	Timeout time.Duration
+	// Progress 用于把测速阶段进度回传给 CLI。
+	// 这样命令层可以在 verbose 模式下输出实时阶段信息，而采集层仍保持可测试。
+	Progress func(SpeedProgressEvent)
 }
 
 // SpeedPingStats 表示延迟测试统计。
@@ -110,16 +113,52 @@ type SpeedSample struct {
 	Mbps       float64 `json:"mbps"`
 }
 
+// SpeedProgressEvent 表示一个测速阶段的进度事件。
+type SpeedProgressEvent struct {
+	Stage   string
+	Message string
+}
+
+// SpeedTraceInfo 描述测速服务返回的出口链路元信息。
+// 这些字段主要来自 `/cdn-cgi/trace` 一类兼容端点；缺失时不视为失败。
+type SpeedTraceInfo struct {
+	PublicIP    string `json:"public_ip,omitempty"`
+	Location    string `json:"location,omitempty"`
+	Colo        string `json:"colo,omitempty"`
+	VisitScheme string `json:"visit_scheme,omitempty"`
+	Operator    string `json:"operator,omitempty"`
+}
+
+// SpeedPhase 表示一次测速中的单个阶段结果。
+// 保留阶段明细的目的是让最终输出能解释“测速是如何得出结论的”，而不是只给一个最终数字。
+type SpeedPhase struct {
+	Name       string  `json:"name"`
+	Status     string  `json:"status"`
+	DurationMs float64 `json:"duration_ms"`
+	Bytes      int64   `json:"bytes,omitempty"`
+	Mbps       float64 `json:"mbps,omitempty"`
+	Detail     string  `json:"detail,omitempty"`
+}
+
+// SpeedAssessment 是对测速结果的可解释总结。
+type SpeedAssessment struct {
+	Summary    string   `json:"summary"`
+	Highlights []string `json:"highlights,omitempty"`
+}
+
 // SpeedResult 是 `net speed` 输出结构。
 type SpeedResult struct {
-	Server     string          `json:"server"`
-	Mode       string          `json:"mode"`
-	PublicIP   string          `json:"public_ip,omitempty"`
-	Ping       *SpeedPingStats `json:"ping,omitempty"`
-	Download   *SpeedSample    `json:"download,omitempty"`
-	Upload     *SpeedSample    `json:"upload,omitempty"`
-	DurationMs float64         `json:"duration_ms"`
-	Warnings   []string        `json:"warnings,omitempty"`
+	Server     string           `json:"server"`
+	Mode       string           `json:"mode"`
+	PublicIP   string           `json:"public_ip,omitempty"`
+	Trace      *SpeedTraceInfo  `json:"trace,omitempty"`
+	Ping       *SpeedPingStats  `json:"ping,omitempty"`
+	Download   *SpeedSample     `json:"download,omitempty"`
+	Upload     *SpeedSample     `json:"upload,omitempty"`
+	Phases     []SpeedPhase     `json:"phases,omitempty"`
+	Assessment *SpeedAssessment `json:"assessment,omitempty"`
+	DurationMs float64          `json:"duration_ms"`
+	Warnings   []string         `json:"warnings,omitempty"`
 }
 
 // ParseStateFilter 解析 `net conn --state` 参数，支持逗号分隔。
