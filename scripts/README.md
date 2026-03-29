@@ -120,6 +120,16 @@ go run ./cmd/syskit monitor all --interval 2s --max-samples 5 --format json
 go run ./cmd/syskit monitor all --inspection-interval 1m --inspection-mode deep --inspection-fail-on high --timeout 2m
 ```
 
+## P1 运维对象与文件治理示例
+
+```bash
+go run ./cmd/syskit service restart ssh --apply --yes
+go run ./cmd/syskit startup list --only-risk --format json
+go run ./cmd/syskit log watch --interval 2s --threshold-error 20 --timeout 20s --format json
+go run ./cmd/syskit file dedup ./data --apply --yes
+go run ./cmd/syskit fix run cleanup-temp,cleanup-logs --apply --yes --on-fail continue
+```
+
 ## 已移除脚本
 
 旧的 `find-largest-local.ps1` 已删除。
