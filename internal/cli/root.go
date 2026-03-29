@@ -10,6 +10,7 @@ import (
 	"syskit/internal/cli/doctor"
 	"syskit/internal/cli/fix"
 	"syskit/internal/cli/mem"
+	"syskit/internal/cli/monitor"
 	netcmd "syskit/internal/cli/net"
 	pingcmd "syskit/internal/cli/ping"
 	"syskit/internal/cli/policy"
@@ -113,6 +114,7 @@ func newApplication(version string) *application {
 		proc.NewCommand(),
 		cpu.NewCommand(),
 		mem.NewCommand(),
+		monitor.NewCommand(),
 		disk.NewCommand(),
 		fix.NewCommand(),
 		snapshot.NewCommand(),

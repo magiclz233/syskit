@@ -144,6 +144,211 @@ func TestCPUBurstJSONIntegration(t *testing.T) {
 	}
 }
 
+func TestCPUWatchJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"cpu", "watch",
+		"--interval", "200ms",
+		"--top", "5",
+		"--threshold-cpu", "10000",
+		"--threshold-load", "10000",
+		"--timeout", "2s",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{
+		"top_n",
+		"interval_ms",
+		"threshold_cpu",
+		"threshold_load",
+		"sample_count",
+		"stopped_reason",
+		"alerts",
+		"last_top_processes",
+	} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("cpu watch data missing field %q: %#v", field, data)
+		}
+	}
+	if got := fmt.Sprint(data["stopped_reason"]); got != "timeout" {
+		t.Fatalf("cpu watch stopped_reason = %s, want timeout", got)
+	}
+}
+
+func TestMemLeakJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	procCmd := startHelperProcess(t, "sleep")
+	pid := procCmd.Process.Pid
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"mem", "leak", strconv.Itoa(pid),
+		"--duration", "1s",
+		"--interval", "200ms",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{
+		"pid",
+		"duration_ms",
+		"interval_ms",
+		"sample_count",
+		"stopped_reason",
+		"rss_growth_bytes",
+		"rss_growth_rate_mb_min",
+		"leak_risk",
+		"leak_reason",
+		"samples",
+	} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("mem leak data missing field %q: %#v", field, data)
+		}
+	}
+	if got := int(data["sample_count"].(float64)); got <= 0 {
+		t.Fatalf("mem leak sample_count = %d, want > 0", got)
+	}
+}
+
+func TestMemWatchJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"mem", "watch",
+		"--interval", "200ms",
+		"--top", "5",
+		"--threshold-mem", "10000",
+		"--threshold-swap", "10000",
+		"--timeout", "2s",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{
+		"top_n",
+		"interval_ms",
+		"threshold_mem",
+		"threshold_swap",
+		"sample_count",
+		"stopped_reason",
+		"alerts",
+		"last_top_processes",
+	} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("mem watch data missing field %q: %#v", field, data)
+		}
+	}
+	if got := fmt.Sprint(data["stopped_reason"]); got != "timeout" {
+		t.Fatalf("mem watch stopped_reason = %s, want timeout", got)
+	}
+}
+
+func TestMonitorAllJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, dataDir, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"monitor", "all",
+		"--interval", "200ms",
+		"--max-samples", "3",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{
+		"interval_ms",
+		"max_samples",
+		"alert_threshold",
+		"sample_count",
+		"stopped_reason",
+		"monitor_file",
+		"peaks",
+		"alerts",
+	} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("monitor all data missing field %q: %#v", field, data)
+		}
+	}
+
+	if got := int(data["sample_count"].(float64)); got != 3 {
+		t.Fatalf("monitor all sample_count = %d, want 3", got)
+	}
+	monitorFile := fmt.Sprint(data["monitor_file"])
+	if !strings.HasPrefix(monitorFile, filepath.Join(dataDir, "monitor")) {
+		t.Fatalf("monitor_file = %s, want under %s", monitorFile, filepath.Join(dataDir, "monitor"))
+	}
+	raw, err := os.ReadFile(monitorFile)
+	if err != nil {
+		t.Fatalf("ReadFile(monitor_file) error = %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("monitor sample lines = %d, want 3", len(lines))
+	}
+}
+
+func TestMonitorAllInspectionJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"monitor", "all",
+		"--interval", "200ms",
+		"--max-samples", "2",
+		"--inspection-interval", "200ms",
+		"--inspection-mode", "quick",
+		"--inspection-fail-on", "never",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	inspections := mustSlice(t, data["inspections"], "inspections")
+	if len(inspections) == 0 {
+		t.Fatalf("monitor all inspections is empty: %#v", data)
+	}
+	first := mustMap(t, inspections[0], "inspections[0]")
+	for _, field := range []string{"timestamp", "mode", "fail_on", "exit_code"} {
+		if _, ok := first[field]; !ok {
+			t.Fatalf("monitor inspection missing field %q: %#v", field, first)
+		}
+	}
+}
+
 func TestDiskScanJSONIntegration(t *testing.T) {
 	root := t.TempDir()
 	configPath, _, _ := writeRuntimeConfig(t, root)

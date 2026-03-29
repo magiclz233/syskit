@@ -13,21 +13,6 @@ func registerPendingCommands(rootCmd *cobra.Command) {
 		return
 	}
 
-	cpuCmd := findCommand(rootCmd, "cpu")
-	if cpuCmd != nil {
-		cpuCmd.AddCommand(
-			cliutil.NewPendingCommand("watch", "持续监控 CPU 使用情况"),
-		)
-	}
-
-	memCmd := findCommand(rootCmd, "mem")
-	if memCmd != nil {
-		memCmd.AddCommand(
-			cliutil.NewPendingCommand("leak <pid>", "监控进程内存泄漏趋势"),
-			cliutil.NewPendingCommand("watch", "持续监控内存使用情况"),
-		)
-	}
-
 	fixCmd := findCommand(rootCmd, "fix")
 	if fixCmd != nil {
 		fixCmd.AddCommand(
@@ -65,12 +50,6 @@ func registerPendingCommands(rootCmd *cobra.Command) {
 			cliutil.NewPendingCommand("disable <id>", "禁用指定启动项"),
 		),
 		newPendingLogCommand(),
-		newPendingGroupCommand(
-			"monitor",
-			"持续监控命令",
-			"monitor 命令组已在 CLI 规范中保留，用于后续持续监控与告警能力。",
-			cliutil.NewPendingCommand("all", "持续监控全系统"),
-		),
 	)
 }
 
