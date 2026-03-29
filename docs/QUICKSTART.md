@@ -53,6 +53,10 @@ go run ./cmd/syskit dns resolve localhost --type A
 go run ./cmd/syskit dns bench localhost --count 3 --type A
 go run ./cmd/syskit ping localhost --count 2
 go run ./cmd/syskit traceroute localhost --max-hops 5
+go run ./cmd/syskit cpu burst --interval 200ms --duration 5s --threshold 70
+go run ./cmd/syskit doctor network --target localhost --fail-on never
+go run ./cmd/syskit doctor disk-full --path . --top 10 --fail-on never
+go run ./cmd/syskit doctor slowness --mode quick --fail-on never
 go run ./cmd/syskit proc top --top 10
 go run ./cmd/syskit proc info 1234
 ```
