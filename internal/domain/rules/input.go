@@ -14,6 +14,7 @@ type RuleThresholds struct {
 	CPUPercent          float64 `json:"cpu_percent,omitempty"`
 	MemPercent          float64 `json:"mem_percent,omitempty"`
 	DiskPercent         float64 `json:"disk_percent,omitempty"`
+	ConnectionCount     int     `json:"connection_count,omitempty"`
 	FileSizeGB          float64 `json:"file_size_gb,omitempty"`
 	SwapPercent         float64 `json:"swap_percent,omitempty"`
 	FileGrowthMBPerHour float64 `json:"file_growth_mb_per_hour,omitempty"`
@@ -27,21 +28,27 @@ type RuleExcludes struct {
 
 // RulePolicy 定义规则判定所需的策略输入。
 type RulePolicy struct {
-	CriticalPorts     []int    `json:"critical_ports,omitempty"`
-	AllowPublicListen []string `json:"allow_public_listen,omitempty"`
+	CriticalPorts        []int    `json:"critical_ports,omitempty"`
+	AllowPublicListen    []string `json:"allow_public_listen,omitempty"`
+	RequiredServices     []string `json:"required_services,omitempty"`
+	RequiredStartupItems []string `json:"required_startup_items,omitempty"`
 }
 
 // DiagnoseSnapshots 是规则引擎可直接消费的归一化快照。
 type DiagnoseSnapshots struct {
-	Ports       []PortSnapshot       `json:"ports,omitempty"`
-	Processes   []ProcessSnapshot    `json:"processes,omitempty"`
-	CPU         *CPUOverviewSnapshot `json:"cpu,omitempty"`
-	Memory      *MemoryOverview      `json:"memory,omitempty"`
-	MemoryTop   []MemoryProcess      `json:"memory_top,omitempty"`
-	Disk        []DiskPartition      `json:"disk,omitempty"`
-	DiskGrowth  []DiskGrowthSample   `json:"disk_growth,omitempty"`
-	Files       []FileObservation    `json:"files,omitempty"`
-	PathEntries []string             `json:"path_entries,omitempty"`
+	Ports        []PortSnapshot          `json:"ports,omitempty"`
+	Processes    []ProcessSnapshot       `json:"processes,omitempty"`
+	CPU          *CPUOverviewSnapshot    `json:"cpu,omitempty"`
+	Memory       *MemoryOverview         `json:"memory,omitempty"`
+	MemoryTop    []MemoryProcess         `json:"memory_top,omitempty"`
+	Disk         []DiskPartition         `json:"disk,omitempty"`
+	DiskGrowth   []DiskGrowthSample      `json:"disk_growth,omitempty"`
+	Files        []FileObservation       `json:"files,omitempty"`
+	PathEntries  []string                `json:"path_entries,omitempty"`
+	Connections  []ConnectionObservation `json:"connections,omitempty"`
+	Services     []ServiceObservation    `json:"services,omitempty"`
+	StartupItems []StartupObservation    `json:"startup_items,omitempty"`
+	Log          *LogObservation         `json:"log,omitempty"`
 }
 
 // PortSnapshot 表示端口监听记录。
@@ -113,4 +120,37 @@ type FileObservation struct {
 	SizeBytes        int64     `json:"size_bytes"`
 	GrowthMBPerHour  float64   `json:"growth_mb_per_hour"`
 	LastModifiedTime time.Time `json:"last_modified_time,omitempty"`
+}
+
+// ConnectionObservation 表示网络连接观测。
+type ConnectionObservation struct {
+	LocalAddr  string `json:"local_addr,omitempty"`
+	RemoteAddr string `json:"remote_addr,omitempty"`
+	State      string `json:"state,omitempty"`
+	Process    string `json:"process,omitempty"`
+}
+
+// ServiceObservation 表示服务状态观测。
+type ServiceObservation struct {
+	Name    string `json:"name"`
+	State   string `json:"state"`
+	Startup string `json:"startup,omitempty"`
+}
+
+// StartupObservation 表示启动项观测。
+type StartupObservation struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Enabled    bool   `json:"enabled"`
+	Risk       bool   `json:"risk"`
+	RiskReason string `json:"risk_reason,omitempty"`
+	Path       string `json:"path,omitempty"`
+}
+
+// LogObservation 表示日志错误观测。
+type LogObservation struct {
+	ErrorRate       float64 `json:"error_rate"`
+	GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
+	ErrorLines      int     `json:"error_lines"`
+	TotalLines      int     `json:"total_lines"`
 }
