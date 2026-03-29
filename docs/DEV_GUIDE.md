@@ -9,7 +9,7 @@
 - 根命令默认显示帮助，不再直接扫描目录。
 - 正式扫描只保留 `syskit disk scan <path>`。
 - 写操作默认 dry-run，危险操作要求 `--apply --yes`。
-- 命令树中的 P1/P2 命令默认保留帮助与占位；已落地项按开发清单逐步转为正式实现（当前已包含 `port ping/scan`、`net conn/listen/speed`、`dns resolve/bench`、`ping`、`traceroute`、`cpu burst`、`doctor network`、`doctor disk-full`、`doctor slowness`）。
+- 命令树中的 P1/P2 命令默认保留帮助与占位；已落地项按开发清单逐步转为正式实现（当前已包含 `port ping/scan`、`net conn/listen/speed`、`dns resolve/bench`、`ping`、`traceroute`、`cpu burst/watch`、`mem leak/watch`、`monitor all`、`doctor network`、`doctor disk-full`、`doctor slowness`）。
 
 ## 目录职责
 

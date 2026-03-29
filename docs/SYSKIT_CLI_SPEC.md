@@ -245,7 +245,7 @@ syskit
 | 命令 | 版本 | 用途 | 关键参数 |
 |---|---|---|---|
 | `fix run <script>` | P1 | 执行内置或自定义修复剧本 | `--apply` `--yes` `--dry-run` `--on-fail <stop/continue>` |
-| `monitor all` | P1 | 持续监控全系统 | `--interval` `--output` `--alert` `--policy` |
+| `monitor all` | P1 | 持续监控全系统 | `--interval` `--max-samples` `--alert` `--inspection-interval` `--inspection-mode` `--inspection-fail-on` `--policy` |
 | `snapshot create` | P0 | 创建快照 | `--name` `--description` `--module` |
 | `snapshot list` | P0 | 列出快照 | `--limit` |
 | `snapshot show <id>` | P0 | 查看快照详情 | `--module` |

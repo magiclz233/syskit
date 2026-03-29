@@ -54,6 +54,11 @@ go run ./cmd/syskit dns bench localhost --count 3 --type A
 go run ./cmd/syskit ping localhost --count 2
 go run ./cmd/syskit traceroute localhost --max-hops 5
 go run ./cmd/syskit cpu burst --interval 200ms --duration 5s --threshold 70
+go run ./cmd/syskit cpu watch --interval 1s --top 10 --threshold-cpu 85 --timeout 30s
+go run ./cmd/syskit mem leak 1234 --duration 2m --interval 2s
+go run ./cmd/syskit mem watch --interval 5s --top 10 --threshold-mem 90 --threshold-swap 50 --timeout 30s
+go run ./cmd/syskit monitor all --interval 2s --max-samples 10 --format json
+go run ./cmd/syskit monitor all --inspection-interval 1m --inspection-mode deep --inspection-fail-on high --timeout 2m
 go run ./cmd/syskit doctor network --target localhost --fail-on never
 go run ./cmd/syskit doctor disk-full --path . --top 10 --fail-on never
 go run ./cmd/syskit doctor slowness --mode quick --fail-on never
