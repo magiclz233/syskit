@@ -1,6 +1,6 @@
 ﻿# syskit
 
-`syskit` 是一个跨平台本地系统运维 CLI，当前已完成 P0 阶段的诊断、扫描、清理、快照、报告和策略基线能力，并开始交付 P1 网络扩展能力。
+`syskit` 是一个跨平台本地系统运维 CLI，当前已完成 P0 与 P1 阶段能力，覆盖诊断、扫描、清理、快照、报告、策略、监控与运维对象治理。
 
 当前正式可用的 P0 命令包括：
 
@@ -30,12 +30,16 @@
 - `mem leak <pid>`
 - `mem watch`
 - `monitor all`
-- `service list`
-- `service check <name>`
+- `service list/check/start/stop/restart/enable/disable`
+- `startup list/enable/disable`
+- `log`
+- `log search <keyword>`
+- `log watch`
+- `file dup/archive/empty/dedup`
+- `fix run <script>`
 - `doctor network`
 - `doctor disk-full`
 - `doctor slowness`
-CLI 帮助树中其余 P1/P2 命令仍以占位形式保留，用于保持命令树、帮助文案和后续扩展路径稳定；未实现命令会明确返回“尚未开发”。
 
 ## 关键行为
 
@@ -72,6 +76,11 @@ go run ./cmd/syskit snapshot list --limit 10
 go run ./cmd/syskit policy init --type config --output .syskit/config.yaml
 go run ./cmd/syskit policy validate .syskit/config.yaml --type config
 go run ./cmd/syskit monitor all --interval 2s --max-samples 5 --format json
+go run ./cmd/syskit service start ssh --apply --yes
+go run ./cmd/syskit startup list --only-risk --format json
+go run ./cmd/syskit log search error --since 24h
+go run ./cmd/syskit file dedup ./data --apply --yes
+go run ./cmd/syskit fix run cleanup-temp --apply --yes
 ```
 
 真实执行写操作前，先看 dry-run：
