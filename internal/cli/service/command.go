@@ -2,9 +2,14 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"strings"
+	"syskit/internal/audit"
 	"syskit/internal/cliutil"
 	servicecollector "syskit/internal/collectors/service"
+	"syskit/internal/config"
+	"syskit/internal/errs"
 	"syskit/internal/output"
 	"time"
 
@@ -22,13 +27,20 @@ type checkOptions struct {
 	detail bool
 }
 
+type actionOutputData struct {
+	Mode   string                         `json:"mode"`
+	Apply  bool                           `json:"apply"`
+	Plan   *servicecollector.ActionPlan   `json:"plan"`
+	Result *servicecollector.ActionResult `json:"result,omitempty"`
+}
+
 // NewCommand 创建 `service` 顶层命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "service",
 		Short: "服务管理命令",
-		Long: "service 提供系统服务列表与健康检查能力，后续会补齐启停和自启管理写操作。" +
-			"\n\n当前已交付 list/check；start/stop/restart/enable/disable 仍保留占位提示。",
+		Long: "service 提供系统服务列表、健康检查和写操作管理能力。" +
+			"\n\nstart/stop/restart/enable/disable 默认仅输出 dry-run 计划，真实执行必须显式传入 `--apply --yes`，并写入审计日志。",
 		Example: "  syskit service list\n" +
 			"  syskit service list --state running --startup auto\n" +
 			"  syskit service check ssh\n" +
@@ -42,11 +54,11 @@ func NewCommand() *cobra.Command {
 	cmd.AddCommand(
 		newListCommand(),
 		newCheckCommand(),
-		cliutil.NewPendingCommand("start <name>", "启动指定服务"),
-		cliutil.NewPendingCommand("stop <name>", "停止指定服务"),
-		cliutil.NewPendingCommand("restart <name>", "重启指定服务"),
-		cliutil.NewPendingCommand("enable <name>", "启用服务开机自启"),
-		cliutil.NewPendingCommand("disable <name>", "禁用服务开机自启"),
+		newActionCommand(servicecollector.ActionStart),
+		newActionCommand(servicecollector.ActionStop),
+		newActionCommand(servicecollector.ActionRestart),
+		newActionCommand(servicecollector.ActionEnable),
+		newActionCommand(servicecollector.ActionDisable),
 	)
 	return cmd
 }
@@ -146,4 +158,162 @@ func runCheck(cmd *cobra.Command, name string, opts *checkOptions) error {
 
 	result := output.NewSuccessResult(msg, resultData, startedAt)
 	return cliutil.RenderCommandResult(cmd, result, newCheckPresenter(resultData))
+}
+
+func newActionCommand(action servicecollector.Action) *cobra.Command {
+	use := string(action) + " <name>"
+	short := "执行服务动作"
+	long := "service " + string(action) + " 属于写操作，默认仅输出 dry-run 计划。" +
+		"\n\n真实执行必须显式传入 `--apply --yes`，执行后会写入审计日志。"
+	example := "  syskit service " + string(action) + " nginx\n" +
+		"  syskit service " + string(action) + " nginx --apply --yes"
+	switch action {
+	case servicecollector.ActionStart:
+		short = "启动指定服务"
+		long = "service start 用于启动指定服务，默认 dry-run，仅输出执行计划。" +
+			"\n\n真实执行必须传入 `--apply --yes`，执行结果会写入审计日志。"
+	case servicecollector.ActionStop:
+		short = "停止指定服务"
+		long = "service stop 用于停止指定服务，默认 dry-run，仅输出执行计划。" +
+			"\n\n真实执行必须传入 `--apply --yes`，执行结果会写入审计日志。"
+	case servicecollector.ActionRestart:
+		short = "重启指定服务"
+		long = "service restart 用于重启指定服务，默认 dry-run，仅输出执行计划。" +
+			"\n\n真实执行必须传入 `--apply --yes`，执行结果会写入审计日志。"
+	case servicecollector.ActionEnable:
+		short = "启用服务开机自启"
+		long = "service enable 用于启用服务开机自启，默认 dry-run，仅输出执行计划。" +
+			"\n\n真实执行必须传入 `--apply --yes`，执行结果会写入审计日志。"
+	case servicecollector.ActionDisable:
+		short = "禁用服务开机自启"
+		long = "service disable 用于禁用服务开机自启，默认 dry-run，仅输出执行计划。" +
+			"\n\n真实执行必须传入 `--apply --yes`，执行结果会写入审计日志。"
+	}
+
+	cmd := &cobra.Command{
+		Use:     use,
+		Short:   short,
+		Long:    long,
+		Example: example,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runAction(cmd, action, args[0])
+		},
+	}
+	return cmd
+}
+
+func runAction(cmd *cobra.Command, action servicecollector.Action, name string) error {
+	startedAt := time.Now()
+	ctx, cancel, err := cliutil.CommandContext(cmd)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	plan, err := servicecollector.BuildActionPlan(ctx, action, name)
+	if err != nil {
+		return err
+	}
+
+	apply := cliutil.ResolveBoolFlag(cmd, "apply")
+	yes := cliutil.ResolveBoolFlag(cmd, "yes")
+	if apply && !yes {
+		return errs.InvalidArgument("真实执行 service 写操作需要同时传入 --yes")
+	}
+
+	if !apply {
+		data := &actionOutputData{
+			Mode:  "dry-run",
+			Apply: false,
+			Plan:  plan,
+		}
+		msg := fmt.Sprintf("服务动作计划已生成（action=%s）", action)
+		result := output.NewSuccessResult(msg, data, startedAt)
+		return cliutil.RenderCommandResult(cmd, result, newActionPresenter(data))
+	}
+
+	execResult, err := servicecollector.ExecuteAction(ctx, plan)
+	if err != nil {
+		auditResult := auditResultFromError(err)
+		auditErr := writeAuditEvent(cmd, ctx, audit.Event{
+			Command:    cmd.CommandPath(),
+			Action:     "service." + string(action),
+			Target:     name,
+			Before:     plan,
+			Result:     auditResult,
+			ErrorMsg:   errs.Message(err),
+			DurationMs: time.Since(startedAt).Milliseconds(),
+			Metadata: map[string]any{
+				"apply":      true,
+				"error_code": errs.ErrorCode(err),
+			},
+		})
+		if auditErr != nil {
+			return errs.ExecutionFailed(
+				fmt.Sprintf("service %s 执行失败且审计写入失败: %s", action, errs.Message(err)),
+				auditErr,
+			)
+		}
+		return err
+	}
+
+	data := &actionOutputData{
+		Mode:   "apply",
+		Apply:  true,
+		Plan:   plan,
+		Result: execResult,
+	}
+	msg := fmt.Sprintf("服务动作执行完成（action=%s）", action)
+	auditResult := "success"
+	if !execResult.Success {
+		auditResult = "partial"
+	}
+	if err := writeAuditEvent(cmd, ctx, audit.Event{
+		Command:    cmd.CommandPath(),
+		Action:     "service." + string(action),
+		Target:     name,
+		Before:     plan,
+		After:      execResult,
+		Result:     auditResult,
+		DurationMs: time.Since(startedAt).Milliseconds(),
+		Metadata: map[string]any{
+			"apply":   true,
+			"success": execResult.Success,
+		},
+	}); err != nil {
+		return err
+	}
+
+	result := output.NewSuccessResult(msg, data, startedAt)
+	return cliutil.RenderCommandResult(cmd, result, newActionPresenter(data))
+}
+
+func loadRuntimeConfig(cmd *cobra.Command) (*config.Config, error) {
+	loadResult, err := config.Load(config.LoadOptions{
+		ExplicitPath: strings.TrimSpace(cliutil.ResolveStringFlag(cmd, "config")),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return loadResult.Config, nil
+}
+
+func writeAuditEvent(cmd *cobra.Command, ctx context.Context, event audit.Event) error {
+	cfg, err := loadRuntimeConfig(cmd)
+	if err != nil {
+		return err
+	}
+	logger, err := audit.NewLogger(cfg.Storage.DataDir)
+	if err != nil {
+		return err
+	}
+	return logger.Log(ctx, event)
+}
+
+func auditResultFromError(err error) string {
+	if errs.Code(err) == errs.ExitPermissionDenied {
+		return "skipped"
+	}
+	return "failed"
 }
