@@ -61,6 +61,16 @@ go run ./cmd/syskit monitor all --interval 2s --max-samples 10 --format json
 go run ./cmd/syskit monitor all --inspection-interval 1m --inspection-mode deep --inspection-fail-on high --timeout 2m
 go run ./cmd/syskit service list --state running
 go run ./cmd/syskit service check ssh --detail --format json
+go run ./cmd/syskit service restart ssh --apply --yes
+go run ./cmd/syskit startup list --only-risk --format json
+go run ./cmd/syskit startup disable stp-12345678 --apply --yes
+go run ./cmd/syskit log --since 24h --level error --detail --format json
+go run ./cmd/syskit log search panic --context 2 --format json
+go run ./cmd/syskit log watch --interval 2s --threshold-error 20 --timeout 20s --format json
+go run ./cmd/syskit file dup . --min-size 1MB --format json
+go run ./cmd/syskit file archive ./logs --older-than 7d --apply
+go run ./cmd/syskit file empty ./workspace --apply --yes
+go run ./cmd/syskit file dedup ./workspace --apply --yes
 go run ./cmd/syskit doctor network --target localhost --fail-on never
 go run ./cmd/syskit doctor disk-full --path . --top 10 --fail-on never
 go run ./cmd/syskit doctor slowness --mode quick --fail-on never
@@ -82,6 +92,8 @@ go run ./cmd/syskit proc kill 1234 --apply --yes
 go run ./cmd/syskit fix cleanup
 go run ./cmd/syskit fix cleanup --target temp --older-than 72h
 go run ./cmd/syskit fix cleanup --apply --yes --older-than 7d
+go run ./cmd/syskit fix run cleanup-temp --apply --yes
+go run ./cmd/syskit fix run cleanup-temp,cleanup-logs --apply --yes --on-fail continue
 ```
 
 ### 3.5 快照与报告

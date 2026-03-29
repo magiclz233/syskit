@@ -9,7 +9,7 @@
 - 根命令默认显示帮助，不再直接扫描目录。
 - 正式扫描只保留 `syskit disk scan <path>`。
 - 写操作默认 dry-run，危险操作要求 `--apply --yes`。
-- 命令树中的 P1/P2 命令默认保留帮助与占位；已落地项按开发清单逐步转为正式实现（当前已包含 `port ping/scan`、`net conn/listen/speed`、`dns resolve/bench`、`ping`、`traceroute`、`cpu burst/watch`、`mem leak/watch`、`monitor all`、`service list/check`、`doctor network`、`doctor disk-full`、`doctor slowness`）。
+- P1 正式命令已全部交付；P2 仍按规范保留为后续阶段，不在当前版本实现。
 
 ## 目录职责
 
@@ -20,7 +20,7 @@
 - `internal/cliutil/`
   - CLI 共享工具，如 pending 命令、扫描入口适配等。
 - `internal/collectors/`
-  - 端口、进程、CPU、内存、磁盘等采集逻辑。
+  - 端口、进程、CPU、内存、磁盘、服务、启动项、日志、文件治理和剧本执行采集逻辑。
 - `internal/domain/`
   - 规则、评分、doctor 结果、snapshot/report 领域模型。
 - `internal/config/`
@@ -32,7 +32,7 @@
 - `internal/storage/`
   - `data_dir` 布局、保留策略、快照/报告目录管理。
 - `internal/audit/`
-  - `port kill`、`proc kill`、`fix cleanup`、`snapshot delete` 等真实写操作审计。
+  - `port kill`、`proc kill`、`fix cleanup`、`fix run`、`service/startup/file`、`snapshot delete` 等真实写操作审计。
 
 ## 常用命令
 
