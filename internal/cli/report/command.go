@@ -358,7 +358,7 @@ func buildMonitorReport(monitorDir string, start time.Time, end time.Time, snaps
 	}
 	report.SnapshotSamples = len(snapshots)
 	if report.MonitorFileCount == 0 {
-		report.Note = "monitor 模块尚未落地，当前以快照样本作为替代指标"
+		report.Note = "当前时间范围内没有 monitor 样本文件"
 		warnings = append(warnings, report.Note)
 	}
 	return report, warnings
