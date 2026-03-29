@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -490,7 +491,8 @@ func renderDoctorResult(cmd *cobra.Command, startedAt time.Time, data *doctorOut
 }
 
 func evaluateDoctor(ctx context.Context, in rules.DiagnoseInput, enabledRules []string, coverage float64, failOn string) (*doctorOutput, int, error) {
-	engine := rules.NewEngine(rules.NewP0Rules()...)
+	allRules := append(rules.NewP0Rules(), rules.NewP1Rules()...)
+	engine := rules.NewEngine(allRules...)
 	evaluated, err := engine.Evaluate(ctx, in, enabledRules)
 	if err != nil {
 		return nil, errs.ExitExecutionFailed, errs.ExecutionFailed("规则评估失败", err)
@@ -767,6 +769,7 @@ func runtimeRuleOptions(runtime *runtimeBundle) rules.DiagnoseOptions {
 	options.Thresholds.CPUPercent = runtime.config.Thresholds.CPUPercent
 	options.Thresholds.MemPercent = runtime.config.Thresholds.MemPercent
 	options.Thresholds.DiskPercent = runtime.config.Thresholds.DiskPercent
+	options.Thresholds.ConnectionCount = runtime.config.Thresholds.ConnectionCount
 	options.Thresholds.FileSizeGB = runtime.config.Thresholds.FileSizeGB
 	options.Excludes.Ports = append([]int(nil), runtime.config.Excludes.Ports...)
 	options.Excludes.Processes = append([]string(nil), runtime.config.Excludes.Processes...)
@@ -784,10 +787,32 @@ func runtimeRuleOptions(runtime *runtimeBundle) rules.DiagnoseOptions {
 		if runtime.policy.ThresholdOverrides.FileSizeGB > 0 {
 			options.Thresholds.FileSizeGB = runtime.policy.ThresholdOverrides.FileSizeGB
 		}
+		if runtime.policy.ThresholdOverrides.ConnectionCount > 0 {
+			options.Thresholds.ConnectionCount = runtime.policy.ThresholdOverrides.ConnectionCount
+		}
 		options.Policy.AllowPublicListen = append([]string(nil), runtime.policy.AllowPublicListen...)
+		for _, service := range runtime.policy.RequiredServices {
+			name := strings.TrimSpace(service.Name)
+			if name == "" {
+				continue
+			}
+			if len(service.Platform) == 0 || containsPlatform(service.Platform) {
+				options.Policy.RequiredServices = append(options.Policy.RequiredServices, name)
+			}
+		}
+		options.Policy.RequiredStartupItems = append([]string(nil), runtime.policy.RequiredStartupItems...)
 	}
 
 	return options
+}
+
+func containsPlatform(platforms []string) bool {
+	for _, item := range platforms {
+		if strings.EqualFold(strings.TrimSpace(item), runtime.GOOS) {
+			return true
+		}
+	}
+	return false
 }
 
 func loadRuntime(cmd *cobra.Command) (*runtimeBundle, error) {
@@ -841,6 +866,10 @@ func enabledRulesForAll(modules []string, mode string) []string {
 		}
 	}
 	set["ENV-001"] = struct{}{}
+	set["NET-001"] = struct{}{}
+	set["SVC-001"] = struct{}{}
+	set["STARTUP-001"] = struct{}{}
+	set["LOG-001"] = struct{}{}
 
 	result := make([]string, 0, len(set))
 	for item := range set {
