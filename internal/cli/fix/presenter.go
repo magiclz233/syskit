@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	cleanupcollector "syskit/internal/collectors/cleanup"
+	fixruncollector "syskit/internal/collectors/fixrun"
 	"syskit/internal/errs"
 	"syskit/pkg/utils"
 	"time"
@@ -276,4 +277,128 @@ func max64(value int64, fallback int64) int64 {
 
 func emptyResultError(message string) error {
 	return errs.New(errs.ExitExecutionFailed, errs.CodeExecutionFailed, message)
+}
+
+type runPresenter struct {
+	data *runOutputData
+}
+
+func newRunPresenter(data *runOutputData) *runPresenter {
+	return &runPresenter{data: data}
+}
+
+func (p *runPresenter) RenderTable(w io.Writer) error {
+	if p.data == nil || p.data.Plan == nil {
+		return emptyResultError("fix run 结果为空")
+	}
+	fmt.Fprintf(w, "Fix Run 模式: %s\n", p.data.Mode)
+	fmt.Fprintf(w, "脚本: %s\n", p.data.Plan.Script)
+	fmt.Fprintf(w, "失败策略: %s\n", p.data.Plan.OnFail)
+	fmt.Fprintf(w, "步骤数: %d\n", len(p.data.Plan.Steps))
+	for idx, step := range p.data.Plan.Steps {
+		fmt.Fprintf(w, "%d. %s [%s]\n", idx+1, step.Name, boolText(step.Builtin))
+	}
+
+	if p.data.Result != nil {
+		fmt.Fprintln(w, "\n执行结果")
+		fmt.Fprintf(w, "success: %t\n", p.data.Result.Success)
+		fmt.Fprintf(w, "succeeded: %d\n", p.data.Result.Succeeded)
+		fmt.Fprintf(w, "failed: %d\n", p.data.Result.Failed)
+		fmt.Fprintf(w, "summary: %s\n", p.data.Result.Summary)
+		renderRunStepsTable(w, p.data.Result.Steps)
+		renderWarningsTable(w, p.data.Result.Warnings)
+		return nil
+	}
+	renderWarningsTable(w, p.data.Plan.Warnings)
+	return nil
+}
+
+func (p *runPresenter) RenderMarkdown(w io.Writer) error {
+	if p.data == nil || p.data.Plan == nil {
+		return emptyResultError("fix run 结果为空")
+	}
+	fmt.Fprintln(w, "# Fix Run")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "- mode: `%s`\n", p.data.Mode)
+	fmt.Fprintf(w, "- script: `%s`\n", mdCell(p.data.Plan.Script))
+	fmt.Fprintf(w, "- on_fail: `%s`\n", p.data.Plan.OnFail)
+	fmt.Fprintf(w, "- step_count: `%d`\n", len(p.data.Plan.Steps))
+	fmt.Fprintln(w, "\n## Steps")
+	fmt.Fprintln(w)
+	for _, step := range p.data.Plan.Steps {
+		fmt.Fprintf(w, "- %s (%s)\n", step.Name, boolText(step.Builtin))
+	}
+	if p.data.Result != nil {
+		fmt.Fprintln(w, "\n## Result")
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "- success: `%t`\n", p.data.Result.Success)
+		fmt.Fprintf(w, "- succeeded: `%d`\n", p.data.Result.Succeeded)
+		fmt.Fprintf(w, "- failed: `%d`\n", p.data.Result.Failed)
+		fmt.Fprintf(w, "- summary: `%s`\n", mdCell(p.data.Result.Summary))
+	}
+	return nil
+}
+
+func (p *runPresenter) RenderCSV(w io.Writer, prefix string) error {
+	_ = prefix
+	if p.data == nil || p.data.Plan == nil {
+		return emptyResultError("fix run 结果为空")
+	}
+	writer := csv.NewWriter(w)
+	defer writer.Flush()
+	if err := writer.Write([]string{"row_type", "name", "builtin", "applied", "success", "duration_ms", "summary"}); err != nil {
+		return errs.ExecutionFailed("写入 CSV 表头失败", err)
+	}
+	writeStep := func(item fixruncollector.StepResult) error {
+		return writer.Write([]string{
+			"step",
+			item.Name,
+			strconv.FormatBool(item.Builtin),
+			strconv.FormatBool(item.Applied),
+			strconv.FormatBool(item.Success),
+			strconv.FormatInt(item.DurationMs, 10),
+			item.Summary,
+		})
+	}
+	if p.data.Result != nil {
+		for _, item := range p.data.Result.Steps {
+			if err := writeStep(item); err != nil {
+				return errs.ExecutionFailed("写入 CSV 内容失败", err)
+			}
+		}
+		return nil
+	}
+
+	for _, item := range p.data.Plan.Steps {
+		if err := writer.Write([]string{
+			"plan",
+			item.Name,
+			strconv.FormatBool(item.Builtin),
+			strconv.FormatBool(false),
+			"",
+			"",
+			item.Action,
+		}); err != nil {
+			return errs.ExecutionFailed("写入 CSV 内容失败", err)
+		}
+	}
+	return nil
+}
+
+func renderRunStepsTable(w io.Writer, steps []fixruncollector.StepResult) {
+	if len(steps) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "\n步骤详情")
+	fmt.Fprintf(w, "%-22s %-8s %-8s %-10s %s\n", "NAME", "BUILTIN", "SUCCESS", "DURATION", "SUMMARY")
+	for _, step := range steps {
+		fmt.Fprintf(w, "%-22s %-8t %-8t %-10d %s\n", step.Name, step.Builtin, step.Success, step.DurationMs, step.Summary)
+	}
+}
+
+func boolText(value bool) string {
+	if value {
+		return "builtin"
+	}
+	return "custom"
 }

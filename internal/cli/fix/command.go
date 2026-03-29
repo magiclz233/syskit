@@ -8,6 +8,7 @@ import (
 	"syskit/internal/audit"
 	"syskit/internal/cliutil"
 	cleanupcollector "syskit/internal/collectors/cleanup"
+	fixruncollector "syskit/internal/collectors/fixrun"
 	"syskit/internal/config"
 	"syskit/internal/errs"
 	"syskit/internal/output"
@@ -21,6 +22,10 @@ type cleanupOptions struct {
 	olderThan string
 }
 
+type runOptions struct {
+	onFail string
+}
+
 // cleanupOutputData 是 `fix cleanup` 的统一输出结构。
 type cleanupOutputData struct {
 	Mode   string                        `json:"mode"`
@@ -29,13 +34,21 @@ type cleanupOutputData struct {
 	Result *cleanupcollector.ApplyResult `json:"result,omitempty"`
 }
 
+// runOutputData 是 `fix run` 的统一输出结构。
+type runOutputData struct {
+	Mode   string                  `json:"mode"`
+	Apply  bool                    `json:"apply"`
+	Plan   *fixruncollector.Plan   `json:"plan"`
+	Result *fixruncollector.Result `json:"result,omitempty"`
+}
+
 // NewCommand 创建 `fix` 顶层命令。
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fix",
 		Short: "修复与清理命令",
-		Long: "fix 提供当前版本允许的受控修复入口。" +
-			"\n\nP0 当前仅开放 `fix cleanup`，其他修复剧本入口保留为占位命令。",
+		Long: "fix 提供受控修复入口，当前包含 `fix cleanup` 和 `fix run`。" +
+			"\n\n写操作默认 dry-run；真实执行需显式传入 `--apply`，危险步骤还需配合 `--yes`，并写入审计日志。",
 		Example: "  syskit fix cleanup\n" +
 			"  syskit fix cleanup --target temp,logs\n" +
 			"  syskit fix cleanup --apply",
@@ -46,6 +59,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(newCleanupCommand())
+	cmd.AddCommand(newRunCommand())
 	return cmd
 }
 
@@ -72,6 +86,27 @@ func newCleanupCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.StringVar(&opts.target, "target", "temp,logs,cache", "清理目标: temp,logs,cache（逗号分隔）")
 	flags.StringVar(&opts.olderThan, "older-than", "7d", "仅清理超过该时长的文件（示例: 72h, 7d, 2w）")
+	return cmd
+}
+
+func newRunCommand() *cobra.Command {
+	opts := &runOptions{
+		onFail: "stop",
+	}
+	cmd := &cobra.Command{
+		Use:   "run <script>",
+		Short: "执行内置或自定义修复剧本",
+		Long: "fix run 用于执行内置或自定义修复剧本，默认只输出 dry-run 计划。" +
+			"\n\n真实执行必须显式传入 `--apply --yes`；执行结果会写入审计日志。可通过 --on-fail 控制失败策略。",
+		Example: "  syskit fix run cleanup-temp\n" +
+			"  syskit fix run cleanup-temp,cleanup-logs --apply --yes\n" +
+			"  syskit fix run \"./scripts/fix.sh --fast\" --apply --yes --on-fail continue",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runScript(cmd, args[0], opts)
+		},
+	}
+	cmd.Flags().StringVar(&opts.onFail, "on-fail", "stop", "失败策略: stop/continue")
 	return cmd
 }
 
@@ -123,17 +158,19 @@ func runCleanup(cmd *cobra.Command, opts *cleanupOptions) error {
 
 	execResult, err := cleanupcollector.ApplyPlan(ctx, plan)
 	if err != nil {
+		auditResult := auditResultFromError(err)
 		auditErr := writeAuditEvent(cmd, ctx, audit.Event{
 			Command:    cmd.CommandPath(),
 			Action:     "fix.cleanup",
 			Target:     strings.Join(targetNames(targets), ","),
 			Before:     plan,
-			Result:     "failed",
+			Result:     auditResult,
 			ErrorMsg:   errs.Message(err),
 			DurationMs: time.Since(startedAt).Milliseconds(),
 			Metadata: map[string]any{
 				"apply":      true,
 				"older_than": opts.olderThan,
+				"error_code": errs.ErrorCode(err),
 			},
 		})
 		if auditErr != nil {
@@ -176,6 +213,93 @@ func runCleanup(cmd *cobra.Command, opts *cleanupOptions) error {
 	return cliutil.RenderCommandResult(cmd, result, newCleanupPresenter(data))
 }
 
+func runScript(cmd *cobra.Command, script string, opts *runOptions) error {
+	startedAt := time.Now()
+	ctx, cancel, err := cliutil.CommandContext(cmd)
+	if err != nil {
+		return err
+	}
+	defer cancel()
+
+	apply := cliutil.ResolveBoolFlag(cmd, "apply")
+	yes := cliutil.ResolveBoolFlag(cmd, "yes")
+	if apply && !yes {
+		return errs.InvalidArgument("真实执行 fix run 需要同时传入 --yes")
+	}
+
+	plan, err := fixruncollector.BuildPlan(script, apply, opts.onFail)
+	if err != nil {
+		return err
+	}
+	if !apply {
+		data := &runOutputData{
+			Mode:  "dry-run",
+			Apply: false,
+			Plan:  plan,
+		}
+		result := output.NewSuccessResult("修复剧本计划已生成（dry-run）", data, startedAt)
+		return cliutil.RenderCommandResult(cmd, result, newRunPresenter(data))
+	}
+
+	cfg, err := loadRuntimeConfig(cmd)
+	if err != nil {
+		return err
+	}
+	execResult, err := fixruncollector.Execute(ctx, plan, cfg)
+	if err != nil {
+		auditResult := auditResultFromError(err)
+		auditErr := writeAuditEvent(cmd, ctx, audit.Event{
+			Command:    cmd.CommandPath(),
+			Action:     "fix.run",
+			Target:     script,
+			Before:     plan,
+			Result:     auditResult,
+			ErrorMsg:   errs.Message(err),
+			DurationMs: time.Since(startedAt).Milliseconds(),
+			Metadata: map[string]any{
+				"apply":      true,
+				"on_fail":    plan.OnFail,
+				"error_code": errs.ErrorCode(err),
+			},
+		})
+		if auditErr != nil {
+			return errs.ExecutionFailed("fix run 执行失败且审计写入失败", auditErr)
+		}
+		return err
+	}
+
+	data := &runOutputData{
+		Mode:   "apply",
+		Apply:  true,
+		Plan:   plan,
+		Result: execResult,
+	}
+	auditResult := "success"
+	if !execResult.Success {
+		auditResult = "partial"
+	}
+	if err := writeAuditEvent(cmd, ctx, audit.Event{
+		Command:    cmd.CommandPath(),
+		Action:     "fix.run",
+		Target:     script,
+		Before:     plan,
+		After:      execResult,
+		Result:     auditResult,
+		DurationMs: time.Since(startedAt).Milliseconds(),
+		Metadata: map[string]any{
+			"apply":   true,
+			"on_fail": plan.OnFail,
+			"success": execResult.Success,
+		},
+	}); err != nil {
+		return err
+	}
+
+	msg := execResult.Summary
+	result := output.NewSuccessResult(msg, data, startedAt)
+	return cliutil.RenderCommandResult(cmd, result, newRunPresenter(data))
+}
+
 func loadRuntimeConfig(cmd *cobra.Command) (*config.Config, error) {
 	loadResult, err := config.Load(config.LoadOptions{
 		ExplicitPath: strings.TrimSpace(cliutil.ResolveStringFlag(cmd, "config")),
@@ -204,4 +328,11 @@ func targetNames(targets []cleanupcollector.Target) []string {
 		result = append(result, string(target))
 	}
 	return result
+}
+
+func auditResultFromError(err error) string {
+	if errs.Code(err) == errs.ExitPermissionDenied {
+		return "skipped"
+	}
+	return "failed"
 }
