@@ -13,6 +13,22 @@ type ServiceEntry struct {
 	Platform    string `json:"platform,omitempty"`
 }
 
+// Action 定义服务写操作类型。
+type Action string
+
+const (
+	// ActionStart 表示启动服务。
+	ActionStart Action = "start"
+	// ActionStop 表示停止服务。
+	ActionStop Action = "stop"
+	// ActionRestart 表示重启服务。
+	ActionRestart Action = "restart"
+	// ActionEnable 表示启用开机自启。
+	ActionEnable Action = "enable"
+	// ActionDisable 表示禁用开机自启。
+	ActionDisable Action = "disable"
+)
+
 // ListOptions 定义 `service list` 的过滤参数。
 type ListOptions struct {
 	State   string
@@ -50,4 +66,28 @@ type CheckResult struct {
 	Summary  string         `json:"summary"`
 	Services []ServiceEntry `json:"services"`
 	Warnings []string       `json:"warnings,omitempty"`
+}
+
+// ActionPlan 是服务写操作的 dry-run 计划。
+type ActionPlan struct {
+	Action   Action       `json:"action"`
+	Name     string       `json:"name"`
+	Platform string       `json:"platform"`
+	Found    bool         `json:"found"`
+	Current  ServiceEntry `json:"current,omitempty"`
+	Steps    []string     `json:"steps"`
+	Warnings []string     `json:"warnings,omitempty"`
+}
+
+// ActionResult 是服务写操作真实执行结果。
+type ActionResult struct {
+	Action   Action       `json:"action"`
+	Name     string       `json:"name"`
+	Platform string       `json:"platform"`
+	Applied  bool         `json:"applied"`
+	Success  bool         `json:"success"`
+	Summary  string       `json:"summary"`
+	Before   ServiceEntry `json:"before,omitempty"`
+	After    ServiceEntry `json:"after,omitempty"`
+	Warnings []string     `json:"warnings,omitempty"`
 }

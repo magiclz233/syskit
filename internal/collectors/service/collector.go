@@ -138,6 +138,117 @@ func CheckService(ctx context.Context, name string, opts CheckOptions) (*CheckRe
 	}, nil
 }
 
+// ParseAction 解析并校验服务动作类型。
+func ParseAction(raw string) (Action, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	switch Action(value) {
+	case ActionStart, ActionStop, ActionRestart, ActionEnable, ActionDisable:
+		return Action(value), nil
+	default:
+		return "", errs.InvalidArgument(fmt.Sprintf("不支持的服务动作: %s", raw))
+	}
+}
+
+// BuildActionPlan 生成服务写操作计划。
+// 这里会先读取当前服务状态，保证 dry-run 输出和真实执行口径一致。
+func BuildActionPlan(ctx context.Context, action Action, name string) (*ActionPlan, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	target := strings.TrimSpace(name)
+	if target == "" {
+		return nil, errs.InvalidArgument("服务名不能为空")
+	}
+
+	action, err := ParseAction(string(action))
+	if err != nil {
+		return nil, err
+	}
+
+	check, err := CheckService(ctx, target, CheckOptions{All: false, Detail: false})
+	if err != nil {
+		return nil, err
+	}
+
+	plan := &ActionPlan{
+		Action:   action,
+		Name:     target,
+		Platform: runtimeName,
+		Found:    check.Found,
+		Steps:    make([]string, 0, 4),
+		Warnings: append([]string{}, check.Warnings...),
+	}
+	if check.Found && len(check.Services) > 0 {
+		plan.Current = check.Services[0]
+	}
+
+	plan.Steps = append(plan.Steps, fmt.Sprintf("检查服务当前状态: %s", check.Summary))
+	switch action {
+	case ActionStart:
+		plan.Steps = append(plan.Steps, "执行启动命令")
+	case ActionStop:
+		plan.Steps = append(plan.Steps, "执行停止命令")
+	case ActionRestart:
+		plan.Steps = append(plan.Steps, "执行重启命令")
+	case ActionEnable:
+		plan.Steps = append(plan.Steps, "执行开机自启启用命令")
+	case ActionDisable:
+		plan.Steps = append(plan.Steps, "执行开机自启禁用命令")
+	}
+	plan.Steps = append(plan.Steps, "重新读取服务状态并验证结果")
+	if !plan.Found {
+		plan.Warnings = append(plan.Warnings, "未命中服务，真实执行预计会失败")
+	}
+	plan.Warnings = dedupeSortedWarnings(plan.Warnings)
+	return plan, nil
+}
+
+// ExecuteAction 执行服务写操作。
+func ExecuteAction(ctx context.Context, plan *ActionPlan) (*ActionResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if plan == nil {
+		return nil, errs.InvalidArgument("服务动作计划不能为空")
+	}
+	if !plan.Found {
+		return nil, errs.New(errs.ExitExecutionFailed, errs.CodeNotFound, "未找到目标服务: "+plan.Name)
+	}
+
+	before := plan.Current
+	warnings := append([]string{}, plan.Warnings...)
+
+	if err := runServiceAction(ctx, plan.Action, plan.Name); err != nil {
+		return nil, err
+	}
+
+	checkAfter, checkErr := CheckService(ctx, plan.Name, CheckOptions{All: false, Detail: false})
+	after := ServiceEntry{}
+	if checkErr != nil {
+		warnings = append(warnings, "执行后状态校验失败: "+errs.Message(checkErr))
+	} else {
+		warnings = append(warnings, checkAfter.Warnings...)
+		if checkAfter.Found && len(checkAfter.Services) > 0 {
+			after = checkAfter.Services[0]
+		}
+	}
+
+	success := verifyActionOutcome(plan.Action, before, after, checkErr)
+	summary := actionSummary(plan.Action, success, before, after)
+
+	return &ActionResult{
+		Action:   plan.Action,
+		Name:     plan.Name,
+		Platform: plan.Platform,
+		Applied:  true,
+		Success:  success,
+		Summary:  summary,
+		Before:   before,
+		After:    after,
+		Warnings: dedupeSortedWarnings(warnings),
+	}, nil
+}
+
 func collectServiceEntries(ctx context.Context) ([]ServiceEntry, []string, error) {
 	switch runtimeName {
 	case "windows":
@@ -148,6 +259,102 @@ func collectServiceEntries(ctx context.Context) ([]ServiceEntry, []string, error
 		return collectDarwinServices(ctx)
 	default:
 		return nil, []string{"当前平台尚未接入服务采集，已降级为空结果"}, nil
+	}
+}
+
+func runServiceAction(ctx context.Context, action Action, name string) error {
+	target := strings.TrimSpace(name)
+	if target == "" {
+		return errs.InvalidArgument("服务名不能为空")
+	}
+	switch runtimeName {
+	case "windows":
+		return runWindowsServiceAction(ctx, action, target)
+	case "linux":
+		return runLinuxServiceAction(ctx, action, target)
+	case "darwin":
+		return runDarwinServiceAction(ctx, action, target)
+	default:
+		return errs.NewWithSuggestion(
+			errs.ExitExecutionFailed,
+			errs.CodePlatformUnsupported,
+			"当前平台不支持 service 写操作",
+			"请在受支持的平台执行该命令",
+		)
+	}
+}
+
+func runWindowsServiceAction(ctx context.Context, action Action, name string) error {
+	script := ""
+	switch action {
+	case ActionStart:
+		script = fmt.Sprintf("$ErrorActionPreference='Stop'; Start-Service -Name '%s'", escapeSingleQuote(name))
+	case ActionStop:
+		script = fmt.Sprintf("$ErrorActionPreference='Stop'; Stop-Service -Name '%s'", escapeSingleQuote(name))
+	case ActionRestart:
+		script = fmt.Sprintf("$ErrorActionPreference='Stop'; Restart-Service -Name '%s' -Force", escapeSingleQuote(name))
+	case ActionEnable:
+		script = fmt.Sprintf("$ErrorActionPreference='Stop'; Set-Service -Name '%s' -StartupType Automatic", escapeSingleQuote(name))
+	case ActionDisable:
+		script = fmt.Sprintf("$ErrorActionPreference='Stop'; Set-Service -Name '%s' -StartupType Disabled", escapeSingleQuote(name))
+	default:
+		return errs.InvalidArgument("不支持的服务动作")
+	}
+	if _, err := commandRunner(ctx, "powershell", "-NoProfile", "-Command", script); err != nil {
+		return mapCommandError(ctx, "执行 Windows 服务操作失败", "powershell", err)
+	}
+	return nil
+}
+
+func runLinuxServiceAction(ctx context.Context, action Action, name string) error {
+	args := []string{}
+	switch action {
+	case ActionStart:
+		args = []string{"start", name}
+	case ActionStop:
+		args = []string{"stop", name}
+	case ActionRestart:
+		args = []string{"restart", name}
+	case ActionEnable:
+		args = []string{"enable", name}
+	case ActionDisable:
+		args = []string{"disable", name}
+	default:
+		return errs.InvalidArgument("不支持的服务动作")
+	}
+	if _, err := commandRunner(ctx, "systemctl", args...); err != nil {
+		return mapCommandError(ctx, "执行 Linux 服务操作失败", "systemctl", err)
+	}
+	return nil
+}
+
+func runDarwinServiceAction(ctx context.Context, action Action, name string) error {
+	switch action {
+	case ActionStart:
+		if _, err := commandRunner(ctx, "launchctl", "start", name); err != nil {
+			return mapCommandError(ctx, "执行 macOS 服务启动失败", "launchctl", err)
+		}
+		return nil
+	case ActionStop:
+		if _, err := commandRunner(ctx, "launchctl", "stop", name); err != nil {
+			return mapCommandError(ctx, "执行 macOS 服务停止失败", "launchctl", err)
+		}
+		return nil
+	case ActionRestart:
+		_, _ = commandRunner(ctx, "launchctl", "stop", name)
+		if _, err := commandRunner(ctx, "launchctl", "start", name); err != nil {
+			return mapCommandError(ctx, "执行 macOS 服务重启失败", "launchctl", err)
+		}
+		return nil
+	case ActionEnable, ActionDisable:
+		return errs.NewWithSuggestion(
+			errs.ExitExecutionFailed,
+			errs.CodePlatformUnsupported,
+			"macOS 当前未接入 service enable/disable",
+			"请使用 launchctl/load/unload 在系统层处理自启配置",
+		)
+	default:
+		return errs.InvalidArgument("不支持的服务动作")
 	}
 }
 
@@ -334,6 +541,44 @@ func enrichLinuxServiceDetail(ctx context.Context, service *ServiceEntry) []stri
 		service.State = normalizeSystemdState(active, values["SubState"])
 	}
 	return nil
+}
+
+func verifyActionOutcome(action Action, before ServiceEntry, after ServiceEntry, checkErr error) bool {
+	if checkErr != nil {
+		return false
+	}
+	switch action {
+	case ActionStart, ActionRestart:
+		return after.State == "running"
+	case ActionStop:
+		return after.State != "running"
+	case ActionEnable:
+		return after.Startup == "auto"
+	case ActionDisable:
+		return after.Startup == "disabled"
+	default:
+		return false
+	}
+}
+
+func actionSummary(action Action, success bool, before ServiceEntry, after ServiceEntry) string {
+	if !success {
+		return fmt.Sprintf("服务动作 %s 已执行，但结果未通过校验", action)
+	}
+	switch action {
+	case ActionStart:
+		return fmt.Sprintf("服务已启动（%s -> %s）", before.State, after.State)
+	case ActionStop:
+		return fmt.Sprintf("服务已停止（%s -> %s）", before.State, after.State)
+	case ActionRestart:
+		return fmt.Sprintf("服务已重启（%s -> %s）", before.State, after.State)
+	case ActionEnable:
+		return fmt.Sprintf("服务已启用自启（%s -> %s）", before.Startup, after.Startup)
+	case ActionDisable:
+		return fmt.Sprintf("服务已禁用自启（%s -> %s）", before.Startup, after.Startup)
+	default:
+		return "服务动作执行完成"
+	}
 }
 
 func filterServices(
@@ -556,6 +801,10 @@ func splitCSV(raw string) []string {
 		}
 	}
 	return result
+}
+
+func escapeSingleQuote(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
 }
 
 func parseKeyValueLines(output []byte) map[string]string {
