@@ -111,6 +111,15 @@ Windows：
 scripts\release.bat 0.4.0
 ```
 
+## P1 监控示例
+
+`monitor all` 已转为正式命令，可用于持续监控和定时巡检基线验证：
+
+```bash
+go run ./cmd/syskit monitor all --interval 2s --max-samples 5 --format json
+go run ./cmd/syskit monitor all --inspection-interval 1m --inspection-mode deep --inspection-fail-on high --timeout 2m
+```
+
 ## 已移除脚本
 
 旧的 `find-largest-local.ps1` 已删除。
