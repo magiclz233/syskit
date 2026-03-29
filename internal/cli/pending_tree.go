@@ -13,19 +13,9 @@ func registerPendingCommands(rootCmd *cobra.Command) {
 		return
 	}
 
-	doctorCmd := findCommand(rootCmd, "doctor")
-	if doctorCmd != nil {
-		doctorCmd.AddCommand(
-			cliutil.NewPendingCommand("network", "执行网络链路专项诊断"),
-			cliutil.NewPendingCommand("disk-full", "执行磁盘爆满场景诊断"),
-			cliutil.NewPendingCommand("slowness", "执行系统卡顿场景诊断"),
-		)
-	}
-
 	cpuCmd := findCommand(rootCmd, "cpu")
 	if cpuCmd != nil {
 		cpuCmd.AddCommand(
-			cliutil.NewPendingCommand("burst", "捕捉突发高 CPU 进程"),
 			cliutil.NewPendingCommand("watch", "持续监控 CPU 使用情况"),
 		)
 	}

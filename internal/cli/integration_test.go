@@ -34,6 +34,116 @@ func TestDoctorAllJSONIntegration(t *testing.T) {
 	}
 }
 
+func TestDoctorNetworkJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(t, "--config", configPath, "doctor", "network", "--target", "localhost", "--fail-on", "never", "--format", "json")
+	if result.ExitCode != 0 && result.ExitCode != 1 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{"scope", "module", "health_score", "health_level", "coverage", "fail_on", "fail_on_matched", "issues"} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("doctor network data missing field %q: %#v", field, data)
+		}
+	}
+	if got := fmt.Sprint(data["module"]); got != "network" {
+		t.Fatalf("doctor network module = %s, want network", got)
+	}
+}
+
+func TestDoctorDiskFullJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+	scanDir := filepath.Join(root, "scan-disk-full")
+	if err := os.MkdirAll(scanDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(scanDir) error = %v", err)
+	}
+	writeSizedFile(t, filepath.Join(scanDir, "big.log"), 4096, 24*time.Hour)
+	writeSizedFile(t, filepath.Join(scanDir, "nested", "app.log"), 2048, 24*time.Hour)
+
+	result := runCLI(t, "--config", configPath, "doctor", "disk-full", "--path", scanDir, "--top", "5", "--fail-on", "never", "--format", "json")
+	if result.ExitCode != 0 && result.ExitCode != 1 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{"scope", "module", "health_score", "health_level", "coverage", "fail_on", "fail_on_matched", "issues"} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("doctor disk-full data missing field %q: %#v", field, data)
+		}
+	}
+	if got := fmt.Sprint(data["module"]); got != "disk-full" {
+		t.Fatalf("doctor disk-full module = %s, want disk-full", got)
+	}
+}
+
+func TestDoctorSlownessJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(t, "--config", configPath, "doctor", "slowness", "--mode", "quick", "--fail-on", "never", "--format", "json")
+	if result.ExitCode != 0 && result.ExitCode != 1 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{"scope", "module", "health_score", "health_level", "coverage", "fail_on", "fail_on_matched", "issues"} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("doctor slowness data missing field %q: %#v", field, data)
+		}
+	}
+	if got := fmt.Sprint(data["module"]); got != "slowness" {
+		t.Fatalf("doctor slowness module = %s, want slowness", got)
+	}
+}
+
+func TestCPUBurstJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"cpu", "burst",
+		"--interval", "200ms",
+		"--duration", "1s",
+		"--threshold", "10000",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{
+		"interval_ms",
+		"duration_ms",
+		"continuous",
+		"threshold_percent",
+		"cpu_cores",
+		"sample_count",
+		"started_at",
+		"ended_at",
+		"processes",
+	} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("cpu burst data missing field %q: %#v", field, data)
+		}
+	}
+
+	processes := mustSlice(t, data["processes"], "processes")
+	if len(processes) != 0 {
+		t.Fatalf("cpu burst with threshold=10000 should not hit processes: %#v", processes)
+	}
+}
+
 func TestDiskScanJSONIntegration(t *testing.T) {
 	root := t.TempDir()
 	configPath, _, _ := writeRuntimeConfig(t, root)
