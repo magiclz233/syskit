@@ -81,3 +81,40 @@ func TestParseBurstDurationAndInterval(t *testing.T) {
 		t.Fatal("parseBurstDuration(-1s) should return invalid argument")
 	}
 }
+
+func TestCPUWatchCommandDefaults(t *testing.T) {
+	cmd := newWatchCommand()
+	flags := cmd.Flags()
+
+	top, err := flags.GetInt("top")
+	if err != nil {
+		t.Fatalf("read --top failed: %v", err)
+	}
+	if top != 10 {
+		t.Fatalf("default --top should be 10, got %d", top)
+	}
+
+	interval, err := flags.GetString("interval")
+	if err != nil {
+		t.Fatalf("read --interval failed: %v", err)
+	}
+	if interval != "1s" {
+		t.Fatalf("default --interval should be 1s, got %s", interval)
+	}
+
+	thresholdCPU, err := flags.GetFloat64("threshold-cpu")
+	if err != nil {
+		t.Fatalf("read --threshold-cpu failed: %v", err)
+	}
+	if thresholdCPU != 80 {
+		t.Fatalf("default --threshold-cpu should be 80, got %f", thresholdCPU)
+	}
+
+	thresholdLoad, err := flags.GetFloat64("threshold-load")
+	if err != nil {
+		t.Fatalf("read --threshold-load failed: %v", err)
+	}
+	if thresholdLoad != 0 {
+		t.Fatalf("default --threshold-load should be 0, got %f", thresholdLoad)
+	}
+}
