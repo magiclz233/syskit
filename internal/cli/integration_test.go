@@ -397,6 +397,235 @@ func TestServiceCheckJSONIntegration(t *testing.T) {
 	}
 }
 
+func TestServiceActionDryRunAndGate(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	dryRun := runCLI(
+		t,
+		"--config", configPath,
+		"service", "start", "syskit",
+		"--format", "json",
+	)
+	if dryRun.ExitCode != 0 {
+		t.Fatalf("dry-run exit code = %d, stderr=%s, err=%v", dryRun.ExitCode, dryRun.Stderr, dryRun.Err)
+	}
+	dryData := mustMap(t, parseJSONResult(t, dryRun.Stdout)["data"], "data")
+	if got := fmt.Sprint(dryData["mode"]); got != "dry-run" {
+		t.Fatalf("dry-run mode = %s, want dry-run", got)
+	}
+
+	gated := runCLI(
+		t,
+		"--config", configPath,
+		"service", "start", "syskit",
+		"--apply",
+		"--format", "json",
+	)
+	if gated.ExitCode != 3 {
+		t.Fatalf("gated exit code = %d, want 3", gated.ExitCode)
+	}
+}
+
+func TestStartupListJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"startup", "list",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+	data := mustMap(t, parseJSONResult(t, result.Stdout)["data"], "data")
+	for _, field := range []string{"platform", "only_risk", "total", "items"} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("startup list data missing field %q: %#v", field, data)
+		}
+	}
+}
+
+func TestLogOverviewSearchWatchIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, logFile := writeRuntimeConfig(t, root)
+	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
+		t.Fatalf("MkdirAll(logDir) error = %v", err)
+	}
+	if err := os.WriteFile(logFile, []byte("2026-03-29T10:00:00Z INFO boot\n2026-03-29T10:01:00Z ERROR panic\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(logFile) error = %v", err)
+	}
+
+	overview := runCLI(
+		t,
+		"--config", configPath,
+		"log",
+		"--since", "48h",
+		"--detail",
+		"--format", "json",
+	)
+	if overview.ExitCode != 0 {
+		t.Fatalf("overview exit code = %d, stderr=%s, err=%v", overview.ExitCode, overview.Stderr, overview.Err)
+	}
+	overviewData := mustMap(t, parseJSONResult(t, overview.Stdout)["data"], "data")
+	for _, field := range []string{"file_count", "total_lines", "matched_lines", "level_counts", "top_messages"} {
+		if _, ok := overviewData[field]; !ok {
+			t.Fatalf("log overview data missing field %q: %#v", field, overviewData)
+		}
+	}
+
+	search := runCLI(
+		t,
+		"--config", configPath,
+		"log", "search", "panic",
+		"--file", logFile,
+		"--context", "1",
+		"--format", "json",
+	)
+	if search.ExitCode != 0 {
+		t.Fatalf("search exit code = %d, stderr=%s, err=%v", search.ExitCode, search.Stderr, search.Err)
+	}
+	searchData := mustMap(t, parseJSONResult(t, search.Stdout)["data"], "data")
+	for _, field := range []string{"keyword", "file_count", "total_matches", "matches"} {
+		if _, ok := searchData[field]; !ok {
+			t.Fatalf("log search data missing field %q: %#v", field, searchData)
+		}
+	}
+
+	go func() {
+		time.Sleep(300 * time.Millisecond)
+		_ = os.WriteFile(logFile, []byte("2026-03-29T10:00:00Z INFO boot\n2026-03-29T10:01:00Z ERROR panic\n2026-03-29T10:02:00Z ERROR later\n"), 0o644)
+	}()
+	watch := runCLI(
+		t,
+		"--config", configPath,
+		"log", "watch",
+		"--file", logFile,
+		"--interval", "200ms",
+		"--threshold-size", "1B",
+		"--threshold-error", "1",
+		"--timeout", "1s",
+		"--format", "json",
+	)
+	if watch.ExitCode != 0 {
+		t.Fatalf("watch exit code = %d, stderr=%s, err=%v", watch.ExitCode, watch.Stderr, watch.Err)
+	}
+	watchData := mustMap(t, parseJSONResult(t, watch.Stdout)["data"], "data")
+	for _, field := range []string{"sample_count", "stopped_reason", "total_growth_bytes", "alerts", "samples"} {
+		if _, ok := watchData[field]; !ok {
+			t.Fatalf("log watch data missing field %q: %#v", field, watchData)
+		}
+	}
+}
+
+func TestFileCommandsIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, dataDir, _ := writeRuntimeConfig(t, root)
+	workDir := filepath.Join(root, "files")
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(workDir) error = %v", err)
+	}
+
+	dupA := writeSizedFile(t, filepath.Join(workDir, "a.bin"), 128, 48*time.Hour)
+	dupB := writeSizedFile(t, filepath.Join(workDir, "b.bin"), 128, 48*time.Hour)
+	oldFile := writeSizedFile(t, filepath.Join(workDir, "old.log"), 256, 72*time.Hour)
+	emptyDir := filepath.Join(workDir, "empty", "nested")
+	if err := os.MkdirAll(emptyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(emptyDir) error = %v", err)
+	}
+
+	dup := runCLI(
+		t,
+		"--config", configPath,
+		"file", "dup", workDir,
+		"--min-size", "1B",
+		"--format", "json",
+	)
+	if dup.ExitCode != 0 {
+		t.Fatalf("file dup exit code = %d, stderr=%s, err=%v", dup.ExitCode, dup.Stderr, dup.Err)
+	}
+	dupData := mustMap(t, parseJSONResult(t, dup.Stdout)["data"], "data")
+	for _, field := range []string{"group_count", "duplicate_count", "groups"} {
+		if _, ok := dupData[field]; !ok {
+			t.Fatalf("file dup data missing field %q: %#v", field, dupData)
+		}
+	}
+
+	dedupDryRun := runCLI(t, "--config", configPath, "file", "dedup", workDir, "--format", "json")
+	if dedupDryRun.ExitCode != 0 {
+		t.Fatalf("dedup dry-run exit code = %d, stderr=%s, err=%v", dedupDryRun.ExitCode, dedupDryRun.Stderr, dedupDryRun.Err)
+	}
+	dedupDryRunData := mustMap(t, parseJSONResult(t, dedupDryRun.Stdout)["data"], "data")
+	if got := fmt.Sprint(dedupDryRunData["mode"]); got != "dry-run" {
+		t.Fatalf("dedup dry-run mode = %s, want dry-run", got)
+	}
+
+	dedupApply := runCLI(t, "--config", configPath, "file", "dedup", workDir, "--apply", "--yes", "--format", "json")
+	if dedupApply.ExitCode != 0 {
+		t.Fatalf("dedup apply exit code = %d, stderr=%s, err=%v", dedupApply.ExitCode, dedupApply.Stderr, dedupApply.Err)
+	}
+	if fileExists(dupA) && fileExists(dupB) {
+		t.Fatalf("dedup apply should remove one duplicate file: a=%t b=%t", fileExists(dupA), fileExists(dupB))
+	}
+
+	archiveDryRun := runCLI(t, "--config", configPath, "file", "archive", workDir, "--older-than", "24h", "--format", "json")
+	if archiveDryRun.ExitCode != 0 {
+		t.Fatalf("archive dry-run exit code = %d, stderr=%s, err=%v", archiveDryRun.ExitCode, archiveDryRun.Stderr, archiveDryRun.Err)
+	}
+	archiveApply := runCLI(t, "--config", configPath, "file", "archive", workDir, "--older-than", "24h", "--apply", "--format", "json")
+	if archiveApply.ExitCode != 0 {
+		t.Fatalf("archive apply exit code = %d, stderr=%s, err=%v", archiveApply.ExitCode, archiveApply.Stderr, archiveApply.Err)
+	}
+	if fileExists(oldFile) {
+		t.Fatalf("archive apply did not remove old source file: %s", oldFile)
+	}
+
+	emptyDryRun := runCLI(t, "--config", configPath, "file", "empty", workDir, "--format", "json")
+	if emptyDryRun.ExitCode != 0 {
+		t.Fatalf("empty dry-run exit code = %d, stderr=%s, err=%v", emptyDryRun.ExitCode, emptyDryRun.Stderr, emptyDryRun.Err)
+	}
+	emptyApply := runCLI(t, "--config", configPath, "file", "empty", workDir, "--apply", "--yes", "--format", "json")
+	if emptyApply.ExitCode != 0 {
+		t.Fatalf("empty apply exit code = %d, stderr=%s, err=%v", emptyApply.ExitCode, emptyApply.Stderr, emptyApply.Err)
+	}
+	if fileExists(emptyDir) {
+		t.Fatalf("empty dir still exists after apply: %s", emptyDir)
+	}
+
+	assertAuditFileExists(t, dataDir)
+}
+
+func TestFixRunDryRunAndApplyIntegration(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("TMP", root)
+	t.Setenv("TEMP", root)
+	t.Setenv("TMPDIR", root)
+
+	configPath, dataDir, _ := writeRuntimeConfig(t, root)
+	targetDir := filepath.Join(root, "syskit")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll(targetDir) error = %v", err)
+	}
+	writeSizedFile(t, filepath.Join(targetDir, "cleanup.tmp"), 64, 10*24*time.Hour)
+
+	dryRun := runCLI(t, "--config", configPath, "fix", "run", "cleanup-temp", "--format", "json")
+	if dryRun.ExitCode != 0 {
+		t.Fatalf("fix run dry-run exit code = %d, stderr=%s, err=%v", dryRun.ExitCode, dryRun.Stderr, dryRun.Err)
+	}
+	dryData := mustMap(t, parseJSONResult(t, dryRun.Stdout)["data"], "data")
+	if got := fmt.Sprint(dryData["mode"]); got != "dry-run" {
+		t.Fatalf("fix run dry-run mode = %s, want dry-run", got)
+	}
+
+	apply := runCLI(t, "--config", configPath, "fix", "run", "cleanup-temp", "--apply", "--yes", "--format", "json")
+	if apply.ExitCode != 0 {
+		t.Fatalf("fix run apply exit code = %d, stderr=%s, err=%v", apply.ExitCode, apply.Stderr, apply.Err)
+	}
+	assertAuditFileExists(t, dataDir)
+}
+
 func TestDiskScanJSONIntegration(t *testing.T) {
 	root := t.TempDir()
 	configPath, _, _ := writeRuntimeConfig(t, root)
