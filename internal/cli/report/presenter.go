@@ -171,6 +171,18 @@ func (p *reportPresenter) RenderCSV(w io.Writer, prefix string) error {
 			if err := writeRow("monitor", "snapshot_samples", strconv.Itoa(p.data.Monitor.SnapshotSamples), ""); err != nil {
 				return err
 			}
+			if err := writeRow("monitor", "parsed_samples", strconv.Itoa(p.data.Monitor.ParsedSamples), ""); err != nil {
+				return err
+			}
+			if err := writeRow("monitor", "alert_count", strconv.Itoa(p.data.Monitor.AlertCount), ""); err != nil {
+				return err
+			}
+			if err := writeRow("monitor", "inspection_count", strconv.Itoa(p.data.Monitor.InspectionCount), ""); err != nil {
+				return err
+			}
+			if err := writeRow("monitor", "warning_samples", strconv.Itoa(p.data.Monitor.WarningSamples), ""); err != nil {
+				return err
+			}
 			if strings.TrimSpace(p.data.Monitor.Note) != "" {
 				if err := writeRow("monitor", "note", p.data.Monitor.Note, ""); err != nil {
 					return err
@@ -234,6 +246,10 @@ func renderMonitorTable(w io.Writer, monitor *monitorReportData) {
 	fmt.Fprintf(w, "monitor 文件总数: %d\n", monitor.MonitorFileCount)
 	fmt.Fprintf(w, "窗口内文件数: %d\n", monitor.RangeFileCount)
 	fmt.Fprintf(w, "快照替代样本数: %d\n", monitor.SnapshotSamples)
+	fmt.Fprintf(w, "解析样本数: %d\n", monitor.ParsedSamples)
+	fmt.Fprintf(w, "告警命中数: %d\n", monitor.AlertCount)
+	fmt.Fprintf(w, "巡检样本数: %d\n", monitor.InspectionCount)
+	fmt.Fprintf(w, "包含 warning 的样本数: %d\n", monitor.WarningSamples)
 	if strings.TrimSpace(monitor.Note) != "" {
 		fmt.Fprintf(w, "说明: %s\n", monitor.Note)
 	}
@@ -301,6 +317,10 @@ func renderMonitorMarkdown(w io.Writer, monitor *monitorReportData) {
 	fmt.Fprintf(w, "- monitor_file_count: `%d`\n", monitor.MonitorFileCount)
 	fmt.Fprintf(w, "- range_file_count: `%d`\n", monitor.RangeFileCount)
 	fmt.Fprintf(w, "- snapshot_samples: `%d`\n", monitor.SnapshotSamples)
+	fmt.Fprintf(w, "- parsed_samples: `%d`\n", monitor.ParsedSamples)
+	fmt.Fprintf(w, "- alert_count: `%d`\n", monitor.AlertCount)
+	fmt.Fprintf(w, "- inspection_count: `%d`\n", monitor.InspectionCount)
+	fmt.Fprintf(w, "- warning_samples: `%d`\n", monitor.WarningSamples)
 	if strings.TrimSpace(monitor.Note) != "" {
 		fmt.Fprintf(w, "- note: `%s`\n", mdCell(monitor.Note))
 	}

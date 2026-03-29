@@ -2,9 +2,12 @@
 package report
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -65,6 +68,10 @@ type monitorReportData struct {
 	MonitorFileCount int    `json:"monitor_file_count"`
 	RangeFileCount   int    `json:"range_file_count"`
 	SnapshotSamples  int    `json:"snapshot_samples"`
+	ParsedSamples    int    `json:"parsed_samples"`
+	AlertCount       int    `json:"alert_count"`
+	InspectionCount  int    `json:"inspection_count"`
+	WarningSamples   int    `json:"warning_samples"`
 	Note             string `json:"note,omitempty"`
 }
 
@@ -354,6 +361,12 @@ func buildMonitorReport(monitorDir string, start time.Time, end time.Time, snaps
 		modTime := info.ModTime().UTC()
 		if !modTime.Before(start) && !modTime.After(end) {
 			report.RangeFileCount++
+			filePath := filepath.Join(monitorDir, item.Name())
+			samples, alerts, inspections, warningSamples := parseMonitorFileStats(filePath)
+			report.ParsedSamples += samples
+			report.AlertCount += alerts
+			report.InspectionCount += inspections
+			report.WarningSamples += warningSamples
 		}
 	}
 	report.SnapshotSamples = len(snapshots)
@@ -362,6 +375,37 @@ func buildMonitorReport(monitorDir string, start time.Time, end time.Time, snaps
 		warnings = append(warnings, report.Note)
 	}
 	return report, warnings
+}
+
+func parseMonitorFileStats(path string) (samples int, alerts int, inspections int, warningSamples int) {
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, 0, 0, 0
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		payload := map[string]any{}
+		if err := json.Unmarshal([]byte(line), &payload); err != nil {
+			continue
+		}
+		samples++
+		if warnings, ok := payload["warnings"].([]any); ok && len(warnings) > 0 {
+			warningSamples++
+		}
+		if alertsRaw, ok := payload["triggered_alerts"].([]any); ok {
+			alerts += len(alertsRaw)
+		}
+		if _, ok := payload["inspection"].(map[string]any); ok {
+			inspections++
+		}
+	}
+	return samples, alerts, inspections, warningSamples
 }
 
 func dedupeStrings(values []string) []string {
