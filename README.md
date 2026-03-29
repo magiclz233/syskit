@@ -25,6 +25,10 @@
 - `dns bench <domain>`
 - `ping <target>`
 - `traceroute <target>`
+- `cpu burst`
+- `doctor network`
+- `doctor disk-full`
+- `doctor slowness`
 CLI 帮助树中其余 P1/P2 命令仍以占位形式保留，用于保持命令树、帮助文案和后续扩展路径稳定；未实现命令会明确返回“尚未开发”。
 
 ## 关键行为
