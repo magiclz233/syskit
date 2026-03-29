@@ -26,6 +26,10 @@
 - `ping <target>`
 - `traceroute <target>`
 - `cpu burst`
+- `cpu watch`
+- `mem leak <pid>`
+- `mem watch`
+- `monitor all`
 - `doctor network`
 - `doctor disk-full`
 - `doctor slowness`
@@ -65,6 +69,7 @@ go run ./cmd/syskit disk scan . --limit 20 --format json
 go run ./cmd/syskit snapshot list --limit 10
 go run ./cmd/syskit policy init --type config --output .syskit/config.yaml
 go run ./cmd/syskit policy validate .syskit/config.yaml --type config
+go run ./cmd/syskit monitor all --interval 2s --max-samples 5 --format json
 ```
 
 真实执行写操作前，先看 dry-run：
