@@ -69,3 +69,26 @@ func TestRunDoctorAllRejectExcludeAllModules(t *testing.T) {
 		t.Fatalf("errs.ErrorCode(err) = %s, want %s", gotCode, errs.CodeInvalidArgument)
 	}
 }
+
+func TestNormalizeNetworkTarget(t *testing.T) {
+	target, dnsDomain, err := normalizeNetworkTarget("1.1.1.1")
+	if err != nil {
+		t.Fatalf("normalizeNetworkTarget(ip) error = %v", err)
+	}
+	if target != "1.1.1.1" || dnsDomain != "" {
+		t.Fatalf("normalizeNetworkTarget(ip) = (%q,%q), want (1.1.1.1,\"\")", target, dnsDomain)
+	}
+
+	target, dnsDomain, err = normalizeNetworkTarget("example.com:443")
+	if err != nil {
+		t.Fatalf("normalizeNetworkTarget(host:port) error = %v", err)
+	}
+	if target != "example.com" || dnsDomain != "example.com" {
+		t.Fatalf("normalizeNetworkTarget(host:port) = (%q,%q), want (example.com,example.com)", target, dnsDomain)
+	}
+
+	_, _, err = normalizeNetworkTarget(" ")
+	if err == nil {
+		t.Fatal("normalizeNetworkTarget(empty) error = nil, want invalid argument")
+	}
+}

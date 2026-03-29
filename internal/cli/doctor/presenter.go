@@ -30,6 +30,9 @@ func (p *doctorPresenter) RenderTable(w io.Writer) error {
 		fmt.Fprintf(w, "模式: %s\n", p.data.Mode)
 	} else {
 		fmt.Fprintf(w, "范围: module (%s)\n", p.data.Module)
+		if strings.TrimSpace(p.data.Mode) != "" {
+			fmt.Fprintf(w, "模式: %s\n", p.data.Mode)
+		}
 	}
 	fmt.Fprintf(w, "健康分: %d\n", p.data.HealthScore)
 	fmt.Fprintf(w, "健康等级: %s\n", p.data.HealthLevel)
@@ -57,6 +60,9 @@ func (p *doctorPresenter) RenderMarkdown(w io.Writer) error {
 		fmt.Fprintf(w, "- modules: `%s`\n", strings.Join(p.data.Modules, ","))
 	} else {
 		fmt.Fprintf(w, "- module: `%s`\n", p.data.Module)
+		if strings.TrimSpace(p.data.Mode) != "" {
+			fmt.Fprintf(w, "- mode: `%s`\n", p.data.Mode)
+		}
 	}
 	fmt.Fprintf(w, "- health_score: `%d`\n", p.data.HealthScore)
 	fmt.Fprintf(w, "- health_level: `%s`\n", p.data.HealthLevel)

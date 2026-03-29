@@ -91,10 +91,12 @@ func NewCommand() *cobra.Command {
 		Use:   "doctor",
 		Short: "系统体检与专项诊断",
 		Long: "doctor 提供一键体检和专项诊断入口，用于把采集、规则判断、评分和退出码协议串成统一闭环。" +
-			"\n\nP0 当前提供 all、port、cpu、mem、disk 五个正式入口，其余专项入口为占位命令。",
+			"\n\n当前已交付 all、port、cpu、mem、disk、network、disk-full、slowness 八个正式入口。",
 		Example: "  syskit doctor all\n" +
 			"  syskit doctor all --mode deep --fail-on medium\n" +
-			"  syskit doctor disk --threshold 85",
+			"  syskit doctor network --target 1.1.1.1\n" +
+			"  syskit doctor disk-full --path /var/log --top 20\n" +
+			"  syskit doctor slowness --mode deep",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
@@ -107,6 +109,9 @@ func NewCommand() *cobra.Command {
 		newCPUCommand(),
 		newMemCommand(),
 		newDiskCommand(),
+		newNetworkCommand(),
+		newDiskFullCommand(),
+		newSlownessCommand(),
 	)
 
 	return cmd
