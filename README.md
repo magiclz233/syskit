@@ -30,6 +30,8 @@
 - `mem leak <pid>`
 - `mem watch`
 - `monitor all`
+- `service list`
+- `service check <name>`
 - `doctor network`
 - `doctor disk-full`
 - `doctor slowness`

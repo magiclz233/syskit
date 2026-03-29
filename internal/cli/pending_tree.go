@@ -29,17 +29,6 @@ func registerPendingCommands(rootCmd *cobra.Command) {
 			cliutil.NewPendingCommand("dedup <path>", "清理重复文件"),
 			cliutil.NewPendingCommand("archive <path>", "归档旧日志或历史文件"),
 			cliutil.NewPendingCommand("empty <path>", "清理空目录"),
-		), newPendingGroupCommand(
-			"service",
-			"服务管理命令",
-			"service 命令组已在 CLI 规范中保留，用于跨平台服务查看与运维。",
-			cliutil.NewPendingCommand("list", "列出系统服务"),
-			cliutil.NewPendingCommand("check <name>", "检查服务健康状态"),
-			cliutil.NewPendingCommand("start <name>", "启动指定服务"),
-			cliutil.NewPendingCommand("stop <name>", "停止指定服务"),
-			cliutil.NewPendingCommand("restart <name>", "重启指定服务"),
-			cliutil.NewPendingCommand("enable <name>", "启用服务开机自启"),
-			cliutil.NewPendingCommand("disable <name>", "禁用服务开机自启"),
 		),
 		newPendingGroupCommand(
 			"startup",

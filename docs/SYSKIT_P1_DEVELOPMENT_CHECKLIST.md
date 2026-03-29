@@ -90,7 +90,7 @@
 
 | 顺序 | ID | 状态 | 需求项 | 关键交付 |
 |---|---|---|---|---|
-| 15 | `P1-015` | `待开发` | 实现 `service list/check` | 服务清单和健康检查（含平台差异降级） |
+| 15 | `P1-015` | `已开发` | 实现 `service list/check` | 服务清单和健康检查（含平台差异降级） |
 | 16 | `P1-016` | `待开发` | 实现 `service start/stop/restart` | 写操作保护、审计日志、可解释失败原因 |
 | 17 | `P1-017` | `待开发` | 实现 `service enable/disable` | 危险操作门禁与审计落盘 |
 | 18 | `P1-018` | `待开发` | 实现 `startup list` | 启动项采集、风险标记与策略联动 |
@@ -154,6 +154,7 @@
 - 2026-03-29: `P1-012` 已开发，新增 `mem watch` 正式命令，支持持续采样、`threshold-mem/threshold-swap` 阈值告警聚合、Ctrl+C/timeout 可中断退出与汇总输出，并补齐单元/集成测试。
 - 2026-03-29: `P1-013` 已开发，新增 `monitor all` 正式命令，支持 CPU/MEM/DISK/PROC/NET 统一轮询、阈值连续命中告警聚合、JSONL 样本落盘到 `data_dir/monitor`，并补齐单元/集成测试。
 - 2026-03-29: `P1-014` 已开发，在 `monitor all` 中支持 `inspection-interval` 定时触发 `doctor all` 与 webhook 告警推送基线，巡检结果纳入结构化输出并补齐集成测试。
+- 2026-03-29: `P1-015` 已开发，新增 `service` 正式命令并交付 `service list/check`，支持跨平台服务采集、状态/启动类型过滤、平台差异降级 warning 与 JSON 契约/集成测试。
 
 ## 9. 已确认事项
 

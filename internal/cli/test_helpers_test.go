@@ -24,6 +24,10 @@ type cliResult struct {
 
 func runCLI(t *testing.T, args ...string) cliResult {
 	t.Helper()
+	if strings.TrimSpace(os.Getenv("SYSKIT_DATA_DIR")) == "" && !hasExplicitConfigArg(args) {
+		// 测试默认把数据目录收敛到临时路径，避免受宿主机目录权限或锁文件残留影响。
+		t.Setenv("SYSKIT_DATA_DIR", filepath.Join(t.TempDir(), "data"))
+	}
 
 	app := newApplication("test-version")
 	var stdout bytes.Buffer
@@ -52,6 +56,19 @@ func runCLI(t *testing.T, args ...string) cliResult {
 		Err:      err,
 		ExitCode: exitCodeOf(err),
 	}
+}
+
+func hasExplicitConfigArg(args []string) bool {
+	for idx := 0; idx < len(args); idx++ {
+		current := strings.TrimSpace(args[idx])
+		if current == "--config" {
+			return true
+		}
+		if strings.HasPrefix(current, "--config=") {
+			return true
+		}
+	}
+	return false
 }
 
 func exitCodeOf(err error) int {

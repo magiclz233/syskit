@@ -17,6 +17,7 @@ import (
 	"syskit/internal/cli/port"
 	"syskit/internal/cli/proc"
 	"syskit/internal/cli/report"
+	"syskit/internal/cli/service"
 	"syskit/internal/cli/snapshot"
 	traceroutecmd "syskit/internal/cli/traceroute"
 	"syskit/internal/config"
@@ -119,6 +120,7 @@ func newApplication(version string) *application {
 		fix.NewCommand(),
 		snapshot.NewCommand(),
 		report.NewCommand(),
+		service.NewCommand(),
 		policy.NewCommand(),
 	)
 	registerPendingCommands(rootCmd)

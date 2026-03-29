@@ -349,6 +349,54 @@ func TestMonitorAllInspectionJSONIntegration(t *testing.T) {
 	}
 }
 
+func TestServiceListJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"service", "list",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{"platform", "total", "services"} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("service list data missing field %q: %#v", field, data)
+		}
+	}
+}
+
+func TestServiceCheckJSONIntegration(t *testing.T) {
+	root := t.TempDir()
+	configPath, _, _ := writeRuntimeConfig(t, root)
+
+	result := runCLI(
+		t,
+		"--config", configPath,
+		"service", "check", "syskit",
+		"--all",
+		"--detail",
+		"--format", "json",
+	)
+	if result.ExitCode != 0 {
+		t.Fatalf("exit code = %d, stderr=%s, err=%v", result.ExitCode, result.Stderr, result.Err)
+	}
+
+	payload := parseJSONResult(t, result.Stdout)
+	data := mustMap(t, payload["data"], "data")
+	for _, field := range []string{"platform", "name", "all", "detail", "found", "healthy", "matched", "running", "summary", "services"} {
+		if _, ok := data[field]; !ok {
+			t.Fatalf("service check data missing field %q: %#v", field, data)
+		}
+	}
+}
+
 func TestDiskScanJSONIntegration(t *testing.T) {
 	root := t.TempDir()
 	configPath, _, _ := writeRuntimeConfig(t, root)

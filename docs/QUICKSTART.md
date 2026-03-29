@@ -59,6 +59,8 @@ go run ./cmd/syskit mem leak 1234 --duration 2m --interval 2s
 go run ./cmd/syskit mem watch --interval 5s --top 10 --threshold-mem 90 --threshold-swap 50 --timeout 30s
 go run ./cmd/syskit monitor all --interval 2s --max-samples 10 --format json
 go run ./cmd/syskit monitor all --inspection-interval 1m --inspection-mode deep --inspection-fail-on high --timeout 2m
+go run ./cmd/syskit service list --state running
+go run ./cmd/syskit service check ssh --detail --format json
 go run ./cmd/syskit doctor network --target localhost --fail-on never
 go run ./cmd/syskit doctor disk-full --path . --top 10 --fail-on never
 go run ./cmd/syskit doctor slowness --mode quick --fail-on never
